@@ -1,4 +1,4 @@
-module github.com/prometheus/node_exporter
+module github.com/chaolihf/node_exporter
 
 go 1.19
 
