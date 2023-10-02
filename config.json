@@ -1,0 +1,20 @@
+{
+    "shellScript":
+        [
+            
+        ],
+    "process":{
+        "interval": 86400,
+        "cpuOffset": 30,
+        "memoryOffset": 200000000,
+        "ioSpeedPerSecond": 5000000,
+        "openFileOffset": 100,
+        "threadOffset": 30,
+        "localLog":true
+    },
+    "network":{
+        "interval": 86400,
+        "counterOffset":100,
+        "localLog":true
+    }
+}

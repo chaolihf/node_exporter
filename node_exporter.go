@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package node_expoter_main
 
 import (
 	"fmt"
@@ -142,7 +142,7 @@ func (h *handler) innerHandler(filters ...string) (http.Handler, error) {
 	return handler, nil
 }
 
-func main() {
+func Main() {
 	var (
 		metricsPath = kingpin.Flag(
 			"web.telemetry-path",
