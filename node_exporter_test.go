@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package node_expoter_main
+package node_exporter_main
 
 import (
 	"fmt"

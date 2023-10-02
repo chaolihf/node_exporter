@@ -2,8 +2,8 @@
 # 集成方式
 1、增加OneAgent项目中pkg下除NodeExportPlugins.go下文件到colletor中  
 2、修改模块名称为module github.com/chaolihf/node_exporter  
-3、修改node_exporter.go的包名为node_expoter_main,mai方法为Main方法
-4、修改node_exporter_test.go的包名为node_expoter_main
+3、修改node_exporter.go的包名为node_exporter_main,main方法为Main方法
+4、修改node_exporter_test.go的包名为node_exporter_main
 
 # 特别说明
 ## 1、修改模块名的原因
