@@ -246,7 +246,7 @@ func getAllConnections(localLog bool) ([]NetworkInfo, error) {
 				}
 			}
 			if localLog {
-				logger.Log("Network", fmt.Sprintf("pid:%d,family:%d,type:%d,local:%s,remote:%s,status:%s",
+				fileLogger.Info(fmt.Sprintf("Network info :pid:%d,family:%d,type:%d,local:%s,remote:%s,status:%s",
 					item.Pid, item.Family, item.Type, item.Laddr.String(), item.Raddr.String(), item.Status))
 			}
 		}

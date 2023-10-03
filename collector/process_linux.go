@@ -117,7 +117,7 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 	} else {
 		if collector.localLog {
 			for _, process := range allProcessInfo {
-				logger.Log("Process", fmt.Sprintf("pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
+				fileLogger.Info(fmt.Sprintf("Process info :pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
 					process.pid, process.cpu, process.vms, process.rss, process.numOpenFiles,
 					process.numThread, process.readBytes, process.writeBytes))
 			}
