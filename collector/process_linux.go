@@ -50,6 +50,7 @@ type ProcessCollector struct {
 	openFileOffset   int
 	threadOffset     int
 	localLog         bool
+	enable           bool
 }
 
 func init() {
@@ -81,6 +82,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 				openFileOffset:   jsonProcessInfo.GetInt("openFileOffset"),
 				threadOffset:     jsonProcessInfo.GetInt("threadOffset"),
 				localLog:         jsonProcessInfo.GetBool("localLog"),
+				enable:           jsonProcessInfo.GetBool("enable"),
 			}, nil
 		}
 	}
@@ -93,6 +95,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 		openFileOffset:   100,
 		threadOffset:     30,
 		localLog:         true,
+		enable:           true,
 	}, nil
 }
 
@@ -100,6 +103,9 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 每隔一段时间更新全量的数据，否正根据规则只更新变更的数据
 */
 func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
+	if !collector.enable {
+		return nil
+	}
 	lastTime := collector.lastCollectTime
 	currentTime := time.Now().Unix()
 	var err error
