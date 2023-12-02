@@ -48,7 +48,6 @@ type NetworkCollector struct {
 	lastNetworkInfo []NetworkInfo
 	counterOffset   int
 	localLog        bool
-	enable          bool
 }
 
 func init() {
@@ -74,7 +73,6 @@ func newNetworkCollector(g_logger log.Logger) (Collector, error) {
 				interval:      jsonNetworkInfo.GetInt("interval"),
 				counterOffset: jsonNetworkInfo.GetInt("counterOffset"),
 				localLog:      jsonNetworkInfo.GetBool("localLog"),
-				enable:        jsonNetworkInfo.GetBool("enable"),
 			}, nil
 		}
 	}
@@ -82,14 +80,10 @@ func newNetworkCollector(g_logger log.Logger) (Collector, error) {
 		interval:      86400,
 		counterOffset: 100,
 		localLog:      true,
-		enable:        true,
 	}, nil
 }
 
 func (collector *NetworkCollector) Update(ch chan<- prometheus.Metric) error {
-	if !collector.enable {
-		return nil
-	}
 	lastTime := collector.lastCollectTime
 	currentTime := time.Now().Unix()
 	var err error
@@ -252,7 +246,7 @@ func getAllConnections(localLog bool) ([]NetworkInfo, error) {
 				}
 			}
 			if localLog {
-				fileLogger.Info(fmt.Sprintf("Network info :pid:%d,family:%d,type:%d,local:%s,remote:%s,status:%s",
+				logger.Log("Network", fmt.Sprintf("pid:%d,family:%d,type:%d,local:%s,remote:%s,status:%s",
 					item.Pid, item.Family, item.Type, item.Laddr.String(), item.Raddr.String(), item.Status))
 			}
 		}
