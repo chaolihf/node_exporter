@@ -12,6 +12,8 @@ github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj
 github.com/cespare/xxhash/v2 v2.2.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/chaolihf/gopsutil v0.0.2 h1:kS9fSweQeiuxopgM+vZul06iL+vTsfxHYwUuahhq0+k=
 github.com/chaolihf/gopsutil v0.0.2/go.mod h1:K+quN882FmO3Vb04D3GtEnA7zTa533NzndJebJWSQIs=
+github.com/chaolihf/gopsutil v0.0.4 h1:QBMr1cX/joudsmp+lDAHCUGFjweMwNRgfhZ5ksWGoEI=
+github.com/chaolihf/gopsutil v0.0.4/go.mod h1:K+quN882FmO3Vb04D3GtEnA7zTa533NzndJebJWSQIs=
 github.com/chaolihf/gopsutil v3.20.10 h1:7zomV9HJv6UGk225YtvEa5+camNLpbua3MAz/GqiVJY=
 github.com/chaolihf/gopsutil v3.20.10/go.mod h1:igHnfak0qnw1biGeI2qKQvu0ZkwvEkUcCLlYhZzdr/4=
 github.com/chaolihf/gopsutil v3.23.11 h1:i3jP9NjCPUz7FiZKxlMnODZkdSIp2gnzfrvsu9CuWEQ=
