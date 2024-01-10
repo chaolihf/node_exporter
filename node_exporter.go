@@ -22,6 +22,7 @@ import (
 	"os/user"
 	"runtime"
 	"sort"
+	"time"
 
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
@@ -144,18 +145,20 @@ func (h *handler) innerHandler(filters ...string) (http.Handler, error) {
 
 func Main() {
 	var (
+		//修改默认路径
 		metricsPath = kingpin.Flag(
 			"web.telemetry-path",
 			"Path under which to expose metrics.",
-		).Default("/metrics").String()
+		).Default("/OneAgentMetrics").String()
 		disableExporterMetrics = kingpin.Flag(
 			"web.disable-exporter-metrics",
 			"Exclude metrics about the exporter itself (promhttp_*, process_*, go_*).",
 		).Bool()
+		//修改默认并发请求数
 		maxRequests = kingpin.Flag(
 			"web.max-requests",
 			"Maximum number of parallel scrape requests. Use 0 to disable.",
-		).Default("40").Int()
+		).Default("3").Int()
 		disableDefaultCollectors = kingpin.Flag(
 			"collector.disable-defaults",
 			"Set all collectors to disabled by default.",
@@ -187,26 +190,30 @@ func Main() {
 
 	http.Handle(*metricsPath, newHandler(!*disableExporterMetrics, *maxRequests, logger))
 	if *metricsPath != "/" {
-		landingConfig := web.LandingConfig{
-			Name:        "Node Exporter",
-			Description: "Prometheus Node Exporter",
-			Version:     version.Info(),
-			Links: []web.LandingLinks{
-				{
-					Address: *metricsPath,
-					Text:    "Metrics",
-				},
-			},
-		}
-		landingPage, err := web.NewLandingPage(landingConfig)
-		if err != nil {
-			level.Error(logger).Log("err", err)
-			os.Exit(1)
-		}
-		http.Handle("/", landingPage)
+		//注释调以下代码，不提供等待页面
+		// landingConfig := web.LandingConfig{
+		// 	Name:        "Node Exporter",
+		// 	Description: "Prometheus Node Exporter",
+		// 	Version:     version.Info(),
+		// 	Links: []web.LandingLinks{
+		// 		{
+		// 			Address: *metricsPath,
+		// 			Text:    "Metrics",
+		// 		},
+		// 	},
+		// }
+		// landingPage, err := web.NewLandingPage(landingConfig)
+		// if err != nil {
+		// 	level.Error(logger).Log("err", err)
+		// 	os.Exit(1)
+		// }
+		// http.Handle("/", landingPage)
 	}
 
-	server := &http.Server{}
+	//增加读取超时设置，防范慢攻击
+	server := &http.Server{
+		ReadTimeout: 5 * time.Second,
+	}
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("err", err)
 		os.Exit(1)
