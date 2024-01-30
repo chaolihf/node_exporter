@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/chaolihf/gopsutil/process"
@@ -50,6 +51,7 @@ type ProcessCollector struct {
 	openFileOffset   int
 	threadOffset     int
 	localLog         bool
+	designed         []string
 }
 
 func init() {
@@ -72,6 +74,14 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 			return nil, err
 		} else {
 			jsonProcessInfo := jsonConfigInfos.GetJsonObject("process")
+			//获取指定进程名称
+			names := []string{}
+			for _, designedProcess := range jsonConfigInfos.GetJsonArray("designedProcess") {
+				designedNames := designedProcess.GetJsonArray("name")
+				for _, designedName := range designedNames {
+					names = append(names, designedName.GetStringValue())
+				}
+			}
 			return &ProcessCollector{
 				interval:         jsonProcessInfo.GetInt("interval"),
 				lastCollectTime:  0,
@@ -81,6 +91,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 				openFileOffset:   jsonProcessInfo.GetInt("openFileOffset"),
 				threadOffset:     jsonProcessInfo.GetInt("threadOffset"),
 				localLog:         jsonProcessInfo.GetBool("localLog"),
+				designed:         names,
 			}, nil
 		}
 	}
@@ -93,6 +104,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 		openFileOffset:   100,
 		threadOffset:     30,
 		localLog:         true,
+		designed:         nil,
 	}, nil
 }
 
@@ -104,17 +116,53 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 	currentTime := time.Now().Unix()
 	var err error
 	var allProcessInfo []ProcessInfo
+	var designedProcess []ProcessInfo
 	var isSendAll bool
 	if lastTime == 0 || currentTime-lastTime > int64(collector.interval) {
 		isSendAll = true
 	} else {
 		isSendAll = false
 	}
-	allProcessInfo, err = getAllProcess(ch, isSendAll)
+	allProcessInfo, designedProcess, err = getAllProcess(ch, collector, isSendAll)
 	if err != nil {
 		ch <- createSuccessMetric("process", 0)
 		return err
 	} else {
+		//判断是否指定进程
+		if designedProcess != nil {
+			if collector.localLog {
+				for _, process := range designedProcess {
+					logger.Log("Process", fmt.Sprintf("pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
+						process.pid, process.cpu, process.vms, process.rss, process.numOpenFiles,
+						process.numThread, process.readBytes, process.writeBytes))
+				}
+			}
+
+			sort.Slice(designedProcess, func(i, j int) bool {
+				return designedProcess[i].pid < designedProcess[j].pid
+			})
+			if !isSendAll {
+				addProcessInfos, changedProccessInfos, removedProcessInfos, newAllProcessInfos := getChangedProcess(collector, designedProcess)
+				for _, process := range addProcessInfos {
+					ch <- createDesignedProcessMetric(&process, DT_Add)
+				}
+				for _, process := range changedProccessInfos {
+					ch <- createDesignedProcessMetric(&process, DT_Changed)
+				}
+				for _, process := range removedProcessInfos {
+					ch <- createDesignedProcessMetric(&process, DT_Delete)
+				}
+				collector.lastProcessInfo = newAllProcessInfos
+			} else {
+				for _, process := range designedProcess {
+					ch <- createDesignedProcessMetric(&process, DT_All)
+				}
+				collector.lastProcessInfo = designedProcess
+			}
+			ch <- createSuccessMetric("designedProcess", 1)
+			collector.lastCollectTime = currentTime
+			return nil
+		}
 		if collector.localLog {
 			for _, process := range allProcessInfo {
 				logger.Log("Process", fmt.Sprintf("pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
@@ -321,20 +369,66 @@ func createProcessMetric(item *ProcessInfo, metricType int) prometheus.Metric {
 }
 
 /*
-get all process and sort by pid
-@return 全量的流程信息
+创建指定进程指标
+metricType : 0表示全量 1表示增量加 2表示增量更新 3表示增量删除
 */
-func getAllProcess(ch chan<- prometheus.Metric, isSendAll bool) ([]ProcessInfo, error) {
+func createDesignedProcessMetric(item *ProcessInfo, metricType int) prometheus.Metric {
+	var tags = make(map[string]string)
+	tags["username"] = item.username
+	tags["name"] = item.name
+	tags["command"] = item.command
+	tags["rss"] = fmt.Sprintf("%d", item.rss)
+	tags["vms"] = fmt.Sprintf("%d", item.vms)
+	tags["numThread"] = fmt.Sprintf("%d", item.numThread)
+	tags["numOpenFiles"] = fmt.Sprintf("%d", item.numOpenFiles)
+	tags["createTime"] = fmt.Sprintf("%d", item.createTime)
+	tags["parentId"] = fmt.Sprintf("%d", item.parentId)
+	tags["pid"] = fmt.Sprintf("%d", item.pid)
+	tags["cpu"] = fmt.Sprintf("%f", item.cpu)
+	tags["exec"] = item.exec
+	tags["readBytes"] = fmt.Sprintf("%d", item.readBytes)
+	tags["writeBytes"] = fmt.Sprintf("%d", item.writeBytes)
+	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
+	tags["writeCount"] = fmt.Sprintf("%d", item.writeCount)
+	metricDesc := prometheus.NewDesc("designedProcess", "designedProcess", nil, tags)
+	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(metricType))
+	return metric
+}
+
+/*
+get all process and sort by pid
+@return 获取进程信息
+*/
+func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isSendAll bool) ([]ProcessInfo, []ProcessInfo, error) {
 	allProcess, err := process.Processes()
 	if err != nil {
 		logger.Log(err.Error())
-		return nil, err
+		return nil, nil, err
 	} else {
 		newProcesses := []ProcessInfo{}
 		for _, process := range allProcess {
 			newProcesses = append(newProcesses, getProccessInfo(process))
 		}
-		return newProcesses, nil
+		designedProcessResult := []ProcessInfo{}
+		names := collector.designed
+		if names != nil {
+			for _, designedName := range names {
+				// 遍历每个进程名称
+				for _, p := range allProcess {
+					name, err := p.Name()
+					if err != nil {
+						logger.Log("process name retrieval error")
+					}
+					// 检查进程名称是否匹配
+					if strings.Contains(name, designedName) {
+						designedProcessResult = append(designedProcessResult, getProccessInfo(p))
+					}
+				}
+			}
+			return newProcesses, designedProcessResult, nil
+		} else {
+			return newProcesses, nil, nil
+		}
 	}
 }
 
