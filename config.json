@@ -10,7 +10,8 @@
         "ioSpeedPerSecond": 5000000,
         "openFileOffset": 100,
         "threadOffset": 30,
-        "localLog":true
+        "localLog":true,
+        "enable":0
     },
     "network":{
         "interval": 86400,

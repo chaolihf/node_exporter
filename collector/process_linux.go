@@ -15,7 +15,7 @@ import (
 )
 
 /*
-保存的进程信息
+保存的进程信息,processType为0表示全量进程，为1表示指定进程
 */
 type ProcessInfo struct {
 	command      string
@@ -39,7 +39,7 @@ type ProcessInfo struct {
 }
 
 /*
-定义Process收集类
+定义Process收集类,enable为0表示不做采集，1表示全量采集，2表示指定进程采集，3表示全量+指定进程
 */
 type ProcessCollector struct {
 	interval         int
@@ -52,6 +52,7 @@ type ProcessCollector struct {
 	threadOffset     int
 	localLog         bool
 	designed         []string
+	enable           int
 }
 
 func init() {
@@ -91,6 +92,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 				openFileOffset:   jsonProcessInfo.GetInt("openFileOffset"),
 				threadOffset:     jsonProcessInfo.GetInt("threadOffset"),
 				localLog:         jsonProcessInfo.GetBool("localLog"),
+				enable:           jsonProcessInfo.GetInt("enable"),
 				designed:         names,
 			}, nil
 		}
@@ -104,6 +106,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 		openFileOffset:   100,
 		threadOffset:     30,
 		localLog:         true,
+		enable:           0,
 		designed:         nil,
 	}, nil
 }
@@ -132,7 +135,7 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 		if designedProcess != nil {
 			if collector.localLog {
 				for _, process := range designedProcess {
-					logger.Log("Process", fmt.Sprintf("pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
+					logger.Log("designedProcess", fmt.Sprintf("pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
 						process.pid, process.cpu, process.vms, process.rss, process.numOpenFiles,
 						process.numThread, process.readBytes, process.writeBytes))
 				}
@@ -161,7 +164,6 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 			}
 			ch <- createSuccessMetric("designedProcess", 1)
 			collector.lastCollectTime = currentTime
-			return nil
 		}
 		if collector.localLog {
 			for _, process := range allProcessInfo {
@@ -405,29 +407,61 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 		logger.Log(err.Error())
 		return nil, nil, err
 	} else {
-		newProcesses := []ProcessInfo{}
-		for _, process := range allProcess {
-			newProcesses = append(newProcesses, getProccessInfo(process))
-		}
-		designedProcessResult := []ProcessInfo{}
-		names := collector.designed
-		if names != nil {
-			for _, designedName := range names {
-				// 遍历每个进程名称
-				for _, p := range allProcess {
-					name, err := p.Name()
-					if err != nil {
-						logger.Log("process name retrieval error")
-					}
-					// 检查进程名称是否匹配
-					if strings.Contains(name, designedName) {
-						designedProcessResult = append(designedProcessResult, getProccessInfo(p))
+		collecType := collector.enable
+		//判断操作类型,enable为0表示不做采集，1表示全量采集，2表示指定进程采集，3表示全量+指定进程
+		if collecType == 0 {
+			return nil, nil, nil
+		} else if collecType == 1 {
+			newProcesses := []ProcessInfo{}
+			for _, process := range allProcess {
+				newProcesses = append(newProcesses, getProccessInfo(process))
+			}
+			return newProcesses, nil, nil
+		} else if collecType == 2 {
+			designedProcessResult := []ProcessInfo{}
+			names := collector.designed
+			//判断是否指定进程
+			if names != nil {
+				for _, designedName := range names {
+					// 遍历每个进程名称
+					for _, p := range allProcess {
+						name, err := p.Name()
+						if err != nil {
+							logger.Log("process name retrieval error")
+						}
+						// 检查进程名称是否匹配
+						if strings.Contains(name, designedName) {
+							designedProcessResult = append(designedProcessResult, getProccessInfo(p))
+						}
 					}
 				}
+				return nil, designedProcessResult, nil
+			} else {
+				return nil, nil, nil
 			}
-			return newProcesses, designedProcessResult, nil
 		} else {
-			return newProcesses, nil, nil
+			newProcesses := []ProcessInfo{}
+			for _, process := range allProcess {
+				newProcesses = append(newProcesses, getProccessInfo(process))
+			}
+			designedProcessResult := []ProcessInfo{}
+			names := collector.designed
+			//判断是否指定进程
+			if names != nil {
+				for _, designedName := range names {
+					// 遍历每个进程名称
+					for _, p := range newProcesses {
+						name := p.name
+						// 检查进程名称是否匹配
+						if strings.Contains(name, designedName) {
+							designedProcessResult = append(designedProcessResult, p)
+						}
+					}
+				}
+				return newProcesses, designedProcessResult, nil
+			} else {
+				return newProcesses, nil, nil
+			}
 		}
 	}
 }
