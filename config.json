@@ -1,4 +1,5 @@
 {
+    "readTimeout":5,
     "shellScript":
         [
             

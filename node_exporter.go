@@ -29,6 +29,7 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
+	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -143,6 +144,28 @@ func (h *handler) innerHandler(filters ...string) (http.Handler, error) {
 	return handler, nil
 }
 
+func initReadTimeConfig() (int, error) {
+	filePath := "config.json"
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		stdlog.Printf("读取文件出错: %s, %v\n", filePath, err)
+		return 10, err
+	} else {
+		jsonConfigInfos, err := jjson.NewJsonObject([]byte(content))
+		if err != nil {
+			stdlog.Printf("JSON文件格式出错:", err)
+			return 10, err
+		} else {
+			readTimeout := jsonConfigInfos.GetInt("readTimeout")
+			if readTimeout != 0 {
+				return readTimeout, nil
+			} else {
+				return 10, nil
+			}
+		}
+	}
+}
+
 func Main() {
 	var (
 		//修改默认路径
@@ -211,8 +234,12 @@ func Main() {
 	}
 
 	//增加读取超时设置，防范慢攻击
+	readTimeout, err := initReadTimeConfig()
+	if err != nil {
+		level.Info(logger).Log("msg", "Reading readTimeoutConfig", err)
+	}
 	server := &http.Server{
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout: time.Duration(readTimeout) * time.Second,
 	}
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("err", err)
