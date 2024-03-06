@@ -39,20 +39,22 @@ type ProcessInfo struct {
 }
 
 /*
-定义Process收集类,enable为0表示不做采集，1表示全量采集，2表示指定进程采集，3表示全量+指定进程
+定义Process收集类,enable为0表示不做采集，1表示全量采集，2表示指定进程采集，3表示全量+指定进程；designedType表示采集方式，false表示指定进程不做新老进程比较，true表示只返回变化较大的指定进程
 */
 type ProcessCollector struct {
-	interval         int
-	lastCollectTime  int64
-	lastProcessInfo  []ProcessInfo
-	cpuOffset        int
-	memoryOffset     int
-	ioSpeedPerSecond int
-	openFileOffset   int
-	threadOffset     int
-	localLog         bool
-	designed         []string
-	enable           int
+	interval                int
+	lastCollectTime         int64
+	lastProcessInfo         []ProcessInfo
+	lastDesignedProcessInfo []ProcessInfo
+	cpuOffset               int
+	memoryOffset            int
+	ioSpeedPerSecond        int
+	openFileOffset          int
+	threadOffset            int
+	localLog                bool
+	designed                []string
+	enable                  int
+	designedType            bool
 }
 
 func init() {
@@ -93,6 +95,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 				threadOffset:     jsonProcessInfo.GetInt("threadOffset"),
 				localLog:         jsonProcessInfo.GetBool("localLog"),
 				enable:           jsonProcessInfo.GetInt("enable"),
+				designedType:     jsonProcessInfo.GetBool("designedType"),
 				designed:         names,
 			}, nil
 		}
@@ -107,6 +110,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 		threadOffset:     30,
 		localLog:         true,
 		enable:           0,
+		designedType:     false,
 		designed:         nil,
 	}, nil
 }
@@ -116,6 +120,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 */
 func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 	lastTime := collector.lastCollectTime
+	designedType := collector.designedType
 	currentTime := time.Now().Unix()
 	var err error
 	var allProcessInfo []ProcessInfo
@@ -133,34 +138,53 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 	} else {
 		//判断是否指定进程
 		if designedProcess != nil {
-			if collector.localLog {
-				for _, process := range designedProcess {
-					logger.Log("designedProcess", fmt.Sprintf("pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
-						process.pid, process.cpu, process.vms, process.rss, process.numOpenFiles,
-						process.numThread, process.readBytes, process.writeBytes))
+			if designedType {
+				if collector.localLog {
+					for _, process := range designedProcess {
+						logger.Log("designedProcess", fmt.Sprintf("pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
+							process.pid, process.cpu, process.vms, process.rss, process.numOpenFiles,
+							process.numThread, process.readBytes, process.writeBytes))
+					}
 				}
-			}
 
-			sort.Slice(designedProcess, func(i, j int) bool {
-				return designedProcess[i].pid < designedProcess[j].pid
-			})
-			if !isSendAll {
-				addProcessInfos, changedProccessInfos, removedProcessInfos, newAllProcessInfos := getChangedProcess(collector, designedProcess)
-				for _, process := range addProcessInfos {
-					ch <- createDesignedProcessMetric(&process, DT_Add)
+				sort.Slice(designedProcess, func(i, j int) bool {
+					return designedProcess[i].pid < designedProcess[j].pid
+				})
+				if !isSendAll {
+					addProcessInfos, changedProccessInfos, removedProcessInfos, newAllProcessInfos := getChangedDesignedProcess(collector, designedProcess)
+					for _, process := range addProcessInfos {
+						ch <- createDesignedProcessMetric(&process, DT_Add)
+					}
+					for _, process := range changedProccessInfos {
+						ch <- createDesignedProcessMetric(&process, DT_Changed)
+					}
+					for _, process := range removedProcessInfos {
+						ch <- createDesignedProcessMetric(&process, DT_Delete)
+					}
+					collector.lastDesignedProcessInfo = newAllProcessInfos
+				} else {
+					for _, process := range designedProcess {
+						ch <- createDesignedProcessMetric(&process, DT_All)
+					}
+					collector.lastDesignedProcessInfo = designedProcess
 				}
-				for _, process := range changedProccessInfos {
-					ch <- createDesignedProcessMetric(&process, DT_Changed)
-				}
-				for _, process := range removedProcessInfos {
-					ch <- createDesignedProcessMetric(&process, DT_Delete)
-				}
-				collector.lastProcessInfo = newAllProcessInfos
 			} else {
+				if collector.localLog {
+					for _, process := range designedProcess {
+						logger.Log("designedProcess", fmt.Sprintf("pid:%d,cpu:%f,vms:%d,rss:%d,files:%d,thread:%d,read:%d,write:%d",
+							process.pid, process.cpu, process.vms, process.rss, process.numOpenFiles,
+							process.numThread, process.readBytes, process.writeBytes))
+					}
+				}
+
+				sort.Slice(designedProcess, func(i, j int) bool {
+					return designedProcess[i].pid < designedProcess[j].pid
+				})
+
 				for _, process := range designedProcess {
 					ch <- createDesignedProcessMetric(&process, DT_All)
 				}
-				collector.lastProcessInfo = designedProcess
+				collector.lastDesignedProcessInfo = designedProcess
 			}
 			ch <- createSuccessMetric("designedProcess", 1)
 			collector.lastCollectTime = currentTime
@@ -200,6 +224,55 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 		}
 		return nil
 	}
+}
+
+/*
+比较新老进程信息获取增量变化信息
+完整的进程包括新增的进程和未变更的进程（进程信息使用老的）以及变更的进程
+返回：增加的进程，变更的进程，删除的进程，完整的进程信息
+*/
+func getChangedDesignedProcess(collector *ProcessCollector, newProcesses []ProcessInfo) ([]ProcessInfo, []ProcessInfo, []ProcessInfo, []ProcessInfo) {
+	var (
+		newProcessesArr     []ProcessInfo
+		changedProcesses    []ProcessInfo
+		deletedProcessesArr []ProcessInfo
+		allProcessesArr     []ProcessInfo
+	)
+	oldProcesses := collector.lastDesignedProcessInfo
+	oldIndex := 0
+	newIndex := 0
+	interval := time.Now().Unix() - collector.lastCollectTime
+	for oldIndex < len(oldProcesses) && newIndex < len(newProcesses) {
+		oldPID := oldProcesses[oldIndex].pid
+		newPID := newProcesses[newIndex].pid
+		if oldPID == newPID {
+			if areProcessesChanged(&oldProcesses[oldIndex], &newProcesses[newIndex], collector, interval) {
+				changedProcesses = append(changedProcesses, newProcesses[newIndex])
+				allProcessesArr = append(allProcessesArr, newProcesses[newIndex])
+			} else {
+				allProcessesArr = append(allProcessesArr, oldProcesses[oldIndex])
+			}
+			oldIndex++
+			newIndex++
+		} else if oldPID < newPID {
+			deletedProcessesArr = append(deletedProcessesArr, oldProcesses[oldIndex])
+			oldIndex++
+		} else {
+			newProcessesArr = append(newProcessesArr, newProcesses[newIndex])
+			allProcessesArr = append(allProcessesArr, newProcesses[newIndex])
+			newIndex++
+		}
+	}
+	for oldIndex < len(oldProcesses) {
+		deletedProcessesArr = append(deletedProcessesArr, oldProcesses[oldIndex])
+		oldIndex++
+	}
+	for newIndex < len(newProcesses) {
+		newProcessesArr = append(newProcessesArr, newProcesses[newIndex])
+		allProcessesArr = append(allProcessesArr, newProcesses[newIndex])
+		newIndex++
+	}
+	return newProcessesArr, changedProcesses, deletedProcessesArr, allProcessesArr
 }
 
 /*
