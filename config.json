@@ -12,7 +12,8 @@
         "openFileOffset": 100,
         "threadOffset": 30,
         "localLog":true,
-        "enable":0
+        "enable":0,
+        "designedType":false
     },
     "network":{
         "interval": 86400,
