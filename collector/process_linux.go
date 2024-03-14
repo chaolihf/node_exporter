@@ -187,8 +187,8 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 				collector.lastDesignedProcessInfo = designedProcess
 			}
 			ch <- createSuccessMetric("designedProcess", 1)
-			collector.lastCollectTime = currentTime
 		}
+		collector.lastCollectTime = currentTime
 		if allProcessInfo != nil {
 			if collector.localLog {
 				for _, process := range allProcessInfo {
