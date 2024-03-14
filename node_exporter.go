@@ -213,7 +213,7 @@ func Main() {
 
 	http.Handle(*metricsPath, newHandler(!*disableExporterMetrics, *maxRequests, logger))
 	if *metricsPath != "/" {
-		//注释调以下代码，不提供等待页面
+		//注释以下代码，不提供等待页面
 		// landingConfig := web.LandingConfig{
 		// 	Name:        "Node Exporter",
 		// 	Description: "Prometheus Node Exporter",
