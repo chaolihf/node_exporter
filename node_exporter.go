@@ -14,6 +14,7 @@
 package node_exporter_main
 
 import (
+	"crypto/tls"
 	"fmt"
 	stdlog "log"
 	"net/http"
@@ -213,7 +214,7 @@ func Main() {
 
 	http.Handle(*metricsPath, newHandler(!*disableExporterMetrics, *maxRequests, logger))
 	if *metricsPath != "/" {
-		//注释调以下代码，不提供等待页面
+		//注释以下代码，不提供等待页面
 		// landingConfig := web.LandingConfig{
 		// 	Name:        "Node Exporter",
 		// 	Description: "Prometheus Node Exporter",
@@ -238,8 +239,34 @@ func Main() {
 	if err != nil {
 		level.Info(logger).Log("msg", "Reading readTimeoutConfig", err)
 	}
+	tlsconf := &tls.Config{
+		InsecureSkipVerify:       true,
+		MaxVersion:               tls.VersionTLS13,
+		MinVersion:               tls.VersionTLS12,
+		PreferServerCipherSuites: true,
+	}
+	//维护到配置文件
+	tlsconf.CipherSuites = []uint16{
+		tls.TLS_AES_128_GCM_SHA256,
+		tls.TLS_CHACHA20_POLY1305_SHA256,
+		tls.TLS_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+	}
+
 	server := &http.Server{
 		ReadTimeout: time.Duration(readTimeout) * time.Second,
+		TLSConfig:   tlsconf,
 	}
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("err", err)
