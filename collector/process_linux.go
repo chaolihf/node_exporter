@@ -36,6 +36,7 @@ type ProcessInfo struct {
 	writeBytes   int64
 	writeCount   int64
 	writeSpeed   float64
+	status       string
 }
 
 /*
@@ -387,6 +388,7 @@ func getProccessInfo(item *process.Process) ProcessInfo {
 	cpu, _ := item.CPUPercent()
 	exec, _ := item.Exe()
 	ioCounters, _ := item.IOCounters()
+	status, _ := item.Status()
 	pi.username = username
 	pi.name = name
 	pi.command = extractString(command, 120, 120, "|||")
@@ -415,6 +417,7 @@ func getProccessInfo(item *process.Process) ProcessInfo {
 		pi.readCount = -1
 		pi.writeCount = -1
 	}
+	pi.status = status[0]
 	return pi
 }
 
@@ -440,6 +443,7 @@ func createProcessMetric(item *ProcessInfo, metricType int) prometheus.Metric {
 	tags["writeBytes"] = fmt.Sprintf("%d", item.writeBytes)
 	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
 	tags["writeCount"] = fmt.Sprintf("%d", item.writeCount)
+	tags["status"] = item.status
 	metricDesc := prometheus.NewDesc("process", "process", nil, tags)
 	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(metricType))
 	return metric
@@ -467,6 +471,7 @@ func createDesignedProcessMetric(item *ProcessInfo, metricType int) prometheus.M
 	tags["writeBytes"] = fmt.Sprintf("%d", item.writeBytes)
 	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
 	tags["writeCount"] = fmt.Sprintf("%d", item.writeCount)
+	tags["status"] = item.status
 	metricDesc := prometheus.NewDesc("designedProcess", "designedProcess", nil, tags)
 	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(metricType))
 	return metric
