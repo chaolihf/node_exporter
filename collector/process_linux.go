@@ -129,6 +129,7 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 	var isSendAll bool
 	if lastTime == 0 || currentTime-lastTime > int64(collector.interval) {
 		isSendAll = true
+		collector.lastCollectTime = currentTime
 	} else {
 		isSendAll = false
 	}
@@ -188,7 +189,6 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 				collector.lastDesignedProcessInfo = designedProcess
 			}
 			ch <- createSuccessMetric("designedProcess", 1)
-			collector.lastCollectTime = currentTime
 		}
 		if allProcessInfo != nil {
 			if collector.localLog {
