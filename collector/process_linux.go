@@ -36,7 +36,7 @@ type ProcessInfo struct {
 	writeBytes   int64
 	writeCount   int64
 	writeSpeed   float64
-	status       []string
+	status       string
 }
 
 /*
@@ -369,6 +369,9 @@ func areProcessesChanged(oldProcessInfo, newProcessInfo *ProcessInfo, collector 
 			return false
 		}
 	}
+	if !strings.EqualFold(oldProcessInfo.status, newProcessInfo.status) {
+		return true
+	}
 	return false
 }
 
@@ -417,7 +420,7 @@ func getProccessInfo(item *process.Process) ProcessInfo {
 		pi.readCount = -1
 		pi.writeCount = -1
 	}
-	pi.status = status
+	pi.status = status[0]
 	return pi
 }
 
@@ -443,7 +446,7 @@ func createProcessMetric(item *ProcessInfo, metricType int) prometheus.Metric {
 	tags["writeBytes"] = fmt.Sprintf("%d", item.writeBytes)
 	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
 	tags["writeCount"] = fmt.Sprintf("%d", item.writeCount)
-	tags["status"] = fmt.Sprintf("%d", item.status)
+	tags["status"] = item.status
 	metricDesc := prometheus.NewDesc("process", "process", nil, tags)
 	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(metricType))
 	return metric
@@ -471,7 +474,7 @@ func createDesignedProcessMetric(item *ProcessInfo, metricType int) prometheus.M
 	tags["writeBytes"] = fmt.Sprintf("%d", item.writeBytes)
 	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
 	tags["writeCount"] = fmt.Sprintf("%d", item.writeCount)
-	tags["status"] = fmt.Sprintf("%d", item.status)
+	tags["status"] = item.status
 	metricDesc := prometheus.NewDesc("designedProcess", "designedProcess", nil, tags)
 	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(metricType))
 	return metric
