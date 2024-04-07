@@ -15,6 +15,20 @@
         "enable":0,
         "designedType":false
     },
+    "designedProcess":[
+        {
+            "command":["postgres"],
+            "process_object_id":["123"]
+        },
+        {
+            "command":["docker-proxy"],
+            "process_object_id":["231"]
+        },
+        {
+            "command":["java"],
+            "process_object_id":["321"]
+        }
+    ],
     "network":{
         "interval": 86400,
         "counterOffset":100,
