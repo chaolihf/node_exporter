@@ -39,6 +39,29 @@ type ProcessInfo struct {
 	status       string
 }
 
+type DesignedProcessInfo struct {
+	command         string
+	cpu             float64
+	createTime      int64
+	exec            string
+	name            string
+	numOpenFiles    int32
+	numThread       int32
+	parentId        int32
+	pid             int32
+	rss             int64
+	username        string
+	vms             int64
+	readBytes       int64
+	readCount       int64
+	readSpeed       float64
+	writeBytes      int64
+	writeCount      int64
+	writeSpeed      float64
+	status          string
+	processObjectId string
+}
+
 /*
 定义Process收集类,enable为0表示不做采集，1表示全量采集，2表示指定进程采集，3表示全量+指定进程；designedType表示采集方式，false表示指定进程不做新老进程比较，true表示只返回变化较大的指定进程
 */
@@ -47,7 +70,7 @@ type ProcessCollector struct {
 	cpuInterval             int64
 	lastCollectTime         int64
 	lastProcessInfo         []ProcessInfo
-	lastDesignedProcessInfo []ProcessInfo
+	lastDesignedProcessInfo []DesignedProcessInfo
 	cpuOffset               int
 	memoryOffset            int
 	ioSpeedPerSecond        int
@@ -57,6 +80,7 @@ type ProcessCollector struct {
 	designed                []string
 	enable                  int
 	designedType            bool
+	commandMap              map[string]string
 }
 
 func init() {
@@ -80,12 +104,23 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 		} else {
 			jsonProcessInfo := jsonConfigInfos.GetJsonObject("process")
 			//获取指定进程名称
-			names := []string{}
+			commands := []string{}
+			processObjectIds := []string{}
 			for _, designedProcess := range jsonConfigInfos.GetJsonArray("designedProcess") {
-				designedNames := designedProcess.GetJsonArray("name")
-				for _, designedName := range designedNames {
-					names = append(names, designedName.GetStringValue())
+				designedCommands := designedProcess.GetJsonArray("command")
+				for _, designedCommand := range designedCommands {
+					commands = append(commands, designedCommand.GetStringValue())
 				}
+				designedProcessObjectIds := designedProcess.GetJsonArray("process_object_id")
+				for _, designedProcessObjectId := range designedProcessObjectIds {
+					processObjectIds = append(processObjectIds, designedProcessObjectId.GetStringValue())
+				}
+			}
+			commandMap := make(map[string]string)
+			for i := 0; i < len(commands); i++ {
+				command := commands[i]
+				processObjectId := processObjectIds[i]
+				commandMap[command] = processObjectId
 			}
 			return &ProcessCollector{
 				interval:         jsonProcessInfo.GetInt("interval"),
@@ -99,7 +134,8 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 				localLog:         jsonProcessInfo.GetBool("localLog"),
 				enable:           jsonProcessInfo.GetInt("enable"),
 				designedType:     jsonProcessInfo.GetBool("designedType"),
-				designed:         names,
+				designed:         commands,
+				commandMap:       commandMap,
 			}, nil
 		}
 	}
@@ -116,6 +152,7 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 		enable:           1,
 		designedType:     false,
 		designed:         nil,
+		commandMap:       nil,
 	}, nil
 }
 
@@ -128,7 +165,7 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 	currentTime := time.Now().Unix()
 	var err error
 	var allProcessInfo []ProcessInfo
-	var designedProcess []ProcessInfo
+	var designedProcess []DesignedProcessInfo
 	var isSendAll bool
 	if lastTime == 0 || currentTime-lastTime > int64(collector.interval) {
 		isSendAll = true
@@ -235,12 +272,12 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 完整的进程包括新增的进程和未变更的进程（进程信息使用老的）以及变更的进程
 返回：增加的进程，变更的进程，删除的进程，完整的进程信息
 */
-func getChangedDesignedProcess(collector *ProcessCollector, newProcesses []ProcessInfo) ([]ProcessInfo, []ProcessInfo, []ProcessInfo, []ProcessInfo) {
+func getChangedDesignedProcess(collector *ProcessCollector, newProcesses []DesignedProcessInfo) ([]DesignedProcessInfo, []DesignedProcessInfo, []DesignedProcessInfo, []DesignedProcessInfo) {
 	var (
-		newProcessesArr     []ProcessInfo
-		changedProcesses    []ProcessInfo
-		deletedProcessesArr []ProcessInfo
-		allProcessesArr     []ProcessInfo
+		newProcessesArr     []DesignedProcessInfo
+		changedProcesses    []DesignedProcessInfo
+		deletedProcessesArr []DesignedProcessInfo
+		allProcessesArr     []DesignedProcessInfo
 	)
 	oldProcesses := collector.lastDesignedProcessInfo
 	oldIndex := 0
@@ -250,7 +287,7 @@ func getChangedDesignedProcess(collector *ProcessCollector, newProcesses []Proce
 		oldPID := oldProcesses[oldIndex].pid
 		newPID := newProcesses[newIndex].pid
 		if oldPID == newPID {
-			if areProcessesChanged(&oldProcesses[oldIndex], &newProcesses[newIndex], collector, interval) {
+			if areDesignedProcessesChanged(&oldProcesses[oldIndex], &newProcesses[newIndex], collector, interval) {
 				changedProcesses = append(changedProcesses, newProcesses[newIndex])
 				allProcessesArr = append(allProcessesArr, newProcesses[newIndex])
 			} else {
@@ -379,6 +416,56 @@ func areProcessesChanged(oldProcessInfo, newProcessInfo *ProcessInfo, collector 
 }
 
 /*
+比较进程参数是否发生较大的改变
+*/
+func areDesignedProcessesChanged(oldProcessInfo, newProcessInfo *DesignedProcessInfo, collector *ProcessCollector, interval int64) bool {
+	if math.Abs(oldProcessInfo.cpu-newProcessInfo.cpu) > float64(collector.cpuOffset) {
+		return true
+	}
+	if math.Abs(float64(oldProcessInfo.vms)-float64(newProcessInfo.vms)) > float64(collector.memoryOffset) {
+		return true
+	}
+	if math.Abs(float64(oldProcessInfo.rss)-float64(newProcessInfo.rss)) > float64(collector.memoryOffset) {
+		return true
+	}
+	if math.Abs(float64(oldProcessInfo.numOpenFiles)-float64(newProcessInfo.numOpenFiles)) > float64(collector.openFileOffset) {
+		return true
+	}
+	if math.Abs(float64(oldProcessInfo.numThread)-float64(newProcessInfo.numThread)) > float64(collector.threadOffset) {
+		return true
+	}
+	if collector.lastCollectTime != 0 {
+		changed := false
+		var readSpeed, writeSpeed float64
+		if oldProcessInfo.readBytes != 0 && oldProcessInfo.readSpeed > 0 {
+			readSpeed := math.Abs(float64(oldProcessInfo.readBytes)-float64(newProcessInfo.readBytes)) / float64(interval)
+			if math.Abs(readSpeed-oldProcessInfo.readSpeed) > float64(collector.ioSpeedPerSecond) {
+				changed = true
+			}
+		}
+		if oldProcessInfo.writeBytes != 0 && oldProcessInfo.writeSpeed > 0 {
+			writeSpeed := math.Abs(float64(oldProcessInfo.writeBytes)-float64(newProcessInfo.writeBytes)) / float64(interval)
+			if math.Abs(writeSpeed-oldProcessInfo.writeSpeed) > float64(collector.ioSpeedPerSecond) {
+				changed = true
+			}
+		}
+		if changed {
+			newProcessInfo.readSpeed = readSpeed
+			newProcessInfo.writeSpeed = writeSpeed
+			return true
+		} else {
+			oldProcessInfo.readSpeed = readSpeed
+			oldProcessInfo.writeSpeed = writeSpeed
+			return false
+		}
+	}
+	if !strings.EqualFold(oldProcessInfo.status, newProcessInfo.status) {
+		return true
+	}
+	return false
+}
+
+/*
 根据系统进程获取进程数据
 */
 func getProccessInfo(item *process.Process, collector *ProcessCollector) ProcessInfo {
@@ -429,6 +516,86 @@ func getProccessInfo(item *process.Process, collector *ProcessCollector) Process
 }
 
 /*
+根据系统进程获取指定进程数据
+*/
+func getDesignedProccessInfo(item *process.Process, collector *ProcessCollector, cmd string) DesignedProcessInfo {
+	commandMap := collector.commandMap
+	pi := DesignedProcessInfo{}
+	username, _ := item.Username()
+	name, _ := item.Name()
+	command, _ := item.Cmdline()
+	memory, _ := item.MemoryInfo()
+	numThread, _ := item.NumThreads()
+	numOpenFiles, _ := item.NumFDs()
+	createTime, _ := item.CreateTime()
+	parentId, _ := item.Ppid()
+	cpu, _ := item.Percent(time.Duration(0))
+	exec, _ := item.Exe()
+	ioCounters, _ := item.IOCounters()
+	status, _ := item.Status()
+	pi.username = username
+	pi.name = name
+	pi.command = extractString(command, 120, 120, "|||")
+	if memory != nil {
+		pi.rss = int64(memory.RSS)
+		pi.vms = int64(memory.VMS)
+	} else {
+		pi.rss = -1
+		pi.vms = -1
+	}
+	pi.numThread = numThread
+	pi.numOpenFiles = numOpenFiles
+	pi.createTime = createTime
+	pi.parentId = parentId
+	pi.pid = item.Pid
+	pi.cpu = cpu
+	pi.exec = extractString(exec, 120, 120, "|||")
+	if ioCounters != nil {
+		pi.readBytes = int64(ioCounters.ReadBytes)
+		pi.writeBytes = int64(ioCounters.WriteBytes)
+		pi.readCount = int64(ioCounters.ReadCount)
+		pi.writeCount = int64(ioCounters.WriteCount)
+	} else {
+		pi.readBytes = -1
+		pi.writeBytes = -1
+		pi.readCount = -1
+		pi.writeCount = -1
+	}
+	pi.status = status[0]
+	processObjectId := commandMap[cmd]
+	pi.processObjectId = processObjectId
+	return pi
+}
+
+/*
+聚合指标
+*/
+func appendDesigned(item ProcessInfo, collector *ProcessCollector, cmd string) DesignedProcessInfo {
+	pi := DesignedProcessInfo{}
+	commandMap := collector.commandMap
+	pi.username = item.username
+	pi.name = item.name
+	pi.command = item.command
+	pi.rss = item.rss
+	pi.vms = item.vms
+	pi.numThread = item.numThread
+	pi.numOpenFiles = item.numOpenFiles
+	pi.createTime = item.createTime
+	pi.parentId = item.parentId
+	pi.pid = item.pid
+	pi.cpu = item.cpu
+	pi.exec = item.exec
+	pi.readBytes = item.readBytes
+	pi.writeBytes = item.writeBytes
+	pi.readCount = item.readCount
+	pi.writeCount = item.writeCount
+	pi.status = item.status
+	processObjectId := commandMap[cmd]
+	pi.processObjectId = processObjectId
+	return pi
+}
+
+/*
 创建进程指标
 metricType : 0表示全量 1表示增量加 2表示增量更新 3表示增量删除
 */
@@ -460,7 +627,7 @@ func createProcessMetric(item *ProcessInfo, metricType int) prometheus.Metric {
 创建指定进程指标
 metricType : 0表示全量 1表示增量加 2表示增量更新 3表示增量删除
 */
-func createDesignedProcessMetric(item *ProcessInfo, metricType int) prometheus.Metric {
+func createDesignedProcessMetric(item *DesignedProcessInfo, metricType int) prometheus.Metric {
 	var tags = make(map[string]string)
 	tags["username"] = item.username
 	tags["name"] = item.name
@@ -479,6 +646,7 @@ func createDesignedProcessMetric(item *ProcessInfo, metricType int) prometheus.M
 	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
 	tags["writeCount"] = fmt.Sprintf("%d", item.writeCount)
 	tags["status"] = item.status
+	tags["processObjectId"] = item.processObjectId
 	metricDesc := prometheus.NewDesc("designedProcess", "designedProcess", nil, tags)
 	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(metricType))
 	return metric
@@ -488,7 +656,7 @@ func createDesignedProcessMetric(item *ProcessInfo, metricType int) prometheus.M
 get all process and sort by pid
 @return 获取进程信息
 */
-func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isSendAll bool) ([]ProcessInfo, []ProcessInfo, error) {
+func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isSendAll bool) ([]ProcessInfo, []DesignedProcessInfo, error) {
 	collecType := collector.enable
 	//判断操作类型,enable为0表示不做采集，1表示全量采集，2表示指定进程采集，3表示全量+指定进程
 	if collecType == 0 {
@@ -506,20 +674,20 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 				}
 				return newProcesses, nil, nil
 			} else if collecType == 2 {
-				designedProcessResult := []ProcessInfo{}
-				names := collector.designed
+				designedProcessResult := []DesignedProcessInfo{}
+				commands := collector.designed
 				//判断是否指定进程
-				if names != nil {
-					for _, designedName := range names {
+				if commands != nil {
+					for _, designedCommand := range commands {
 						// 遍历每个进程名称
 						for _, p := range allProcess {
-							name, err := p.Name()
+							command, err := p.Cmdline()
 							if err != nil {
-								logger.Log("process name retrieval error")
+								logger.Log("process command retrieval error")
 							}
 							// 检查进程名称是否匹配
-							if strings.Contains(name, designedName) {
-								designedProcessResult = append(designedProcessResult, getProccessInfo(p, collector))
+							if strings.Contains(command, designedCommand) {
+								designedProcessResult = append(designedProcessResult, getDesignedProccessInfo(p, collector, designedCommand))
 							}
 						}
 					}
@@ -532,17 +700,18 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 				for _, process := range allProcess {
 					newProcesses = append(newProcesses, getProccessInfo(process, collector))
 				}
-				designedProcessResult := []ProcessInfo{}
-				names := collector.designed
+				designedProcessResult := []DesignedProcessInfo{}
+				designedCommands := collector.designed
 				//判断是否指定进程
-				if names != nil {
-					for _, designedName := range names {
+				if designedCommands != nil {
+					for _, designedCommand := range designedCommands {
 						// 遍历每个进程名称
 						for _, p := range newProcesses {
-							name := p.name
+							command := p.command
 							// 检查进程名称是否匹配
-							if strings.Contains(name, designedName) {
-								designedProcessResult = append(designedProcessResult, p)
+							if strings.Contains(command, designedCommand) {
+								designedP := appendDesigned(p, collector, designedCommand)
+								designedProcessResult = append(designedProcessResult, designedP)
 							}
 						}
 					}
