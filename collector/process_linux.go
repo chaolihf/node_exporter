@@ -466,17 +466,9 @@ func areDesignedProcessesChanged(oldProcessInfo, newProcessInfo *DesignedProcess
 }
 
 /*
-过滤无意义的CPU使用率
-*/
-func getProccessInfoCpu(item *process.Process) *process.Process {
-	item.Percent(time.Duration(0))
-	return item
-}
-
-/*
 根据系统进程获取进程数据
 */
-func getProccessInfo(item *process.Process) ProcessInfo {
+func getProccessInfo(item *process.Process) (ProcessInfo, *process.Process) {
 	pi := ProcessInfo{}
 	username, _ := item.Username()
 	name, _ := item.Name()
@@ -519,21 +511,13 @@ func getProccessInfo(item *process.Process) ProcessInfo {
 		pi.writeCount = -1
 	}
 	pi.status = status[0]
-	return pi
-}
-
-/*
-过滤掉首次获取CPU占用率为0的情况
-*/
-func getDesignedProccessInfoCpu(item *process.Process) *process.Process {
-	item.Percent(time.Duration(0))
-	return item
+	return pi, item
 }
 
 /*
 根据系统进程获取指定进程数据
 */
-func getDesignedProccessInfo(item *process.Process, collector *ProcessCollector, cmd string) DesignedProcessInfo {
+func getDesignedProccessInfo(item *process.Process, collector *ProcessCollector, cmd string) (DesignedProcessInfo, *process.Process) {
 	commandMap := collector.commandMap
 	pi := DesignedProcessInfo{}
 	username, _ := item.Username()
@@ -579,7 +563,7 @@ func getDesignedProccessInfo(item *process.Process, collector *ProcessCollector,
 	pi.status = status[0]
 	processObjectId := commandMap[cmd]
 	pi.processObjectId = processObjectId
-	return pi
+	return pi, item
 }
 
 /*
@@ -670,7 +654,7 @@ func createDesignedProcessMetric(item *DesignedProcessInfo, metricType int) prom
 /*
 定义全局变量用于缓存进程信息
 */
-var processCache []*process.Process
+var processMap map[int32]*process.Process
 
 /*
 get all process and sort by pid
@@ -690,8 +674,18 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 			if collecType == 1 {
 				newProcesses := []ProcessInfo{}
 				for _, process := range allProcess {
-					lastProcess := getProccessInfoCpu(process)
-					newProcesses = append(newProcesses, getProccessInfo(lastProcess))
+					processPid, _ := process.Ppid()
+					//若该pid存在于先前的map中
+					if _, ok := processMap[processPid]; ok {
+						process = processMap[processPid]
+						processInfo, lastProcess := getProccessInfo(process)
+						newProcesses = append(newProcesses, processInfo)
+						processMap[processPid] = lastProcess
+					} else {
+						processInfo, lastProcess := getProccessInfo(process)
+						newProcesses = append(newProcesses, processInfo)
+						processMap[processPid] = lastProcess
+					}
 				}
 				return newProcesses, nil, nil
 			} else if collecType == 2 {
@@ -708,8 +702,17 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 							}
 							// 检查进程名称是否匹配
 							if strings.Contains(command, designedCommand) {
-								lastDesignedProcess := getDesignedProccessInfoCpu(p)
-								designedProcessResult = append(designedProcessResult, getDesignedProccessInfo(lastDesignedProcess, collector, designedCommand))
+								processPid, _ := p.Ppid()
+								if _, ok := processMap[processPid]; ok {
+									p = processMap[processPid]
+									processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
+									designedProcessResult = append(designedProcessResult, processInfo)
+									processMap[processPid] = lastProcess
+								} else {
+									processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
+									designedProcessResult = append(designedProcessResult, processInfo)
+									processMap[processPid] = lastProcess
+								}
 							}
 						}
 					}
@@ -720,7 +723,18 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 			} else {
 				newProcesses := []ProcessInfo{}
 				for _, process := range allProcess {
-					newProcesses = append(newProcesses, getProccessInfo(process))
+					processPid, _ := process.Ppid()
+					//若该pid存在于先前的map中
+					if _, ok := processMap[processPid]; ok {
+						process = processMap[processPid]
+						processInfo, lastProcess := getProccessInfo(process)
+						newProcesses = append(newProcesses, processInfo)
+						processMap[processPid] = lastProcess
+					} else {
+						processInfo, lastProcess := getProccessInfo(process)
+						newProcesses = append(newProcesses, processInfo)
+						processMap[processPid] = lastProcess
+					}
 				}
 				designedProcessResult := []DesignedProcessInfo{}
 				designedCommands := collector.designed
