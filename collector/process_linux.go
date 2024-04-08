@@ -466,10 +466,17 @@ func areDesignedProcessesChanged(oldProcessInfo, newProcessInfo *DesignedProcess
 }
 
 /*
+过滤无意义的CPU使用率
+*/
+func getProccessInfoCpu(item *process.Process) *process.Process {
+	item.Percent(time.Duration(0))
+	return item
+}
+
+/*
 根据系统进程获取进程数据
 */
-func getProccessInfo(item *process.Process, collector *ProcessCollector) ProcessInfo {
-	cpuInterval := collector.cpuInterval
+func getProccessInfo(item *process.Process) ProcessInfo {
 	pi := ProcessInfo{}
 	username, _ := item.Username()
 	name, _ := item.Name()
@@ -479,7 +486,7 @@ func getProccessInfo(item *process.Process, collector *ProcessCollector) Process
 	numOpenFiles, _ := item.NumFDs()
 	createTime, _ := item.CreateTime()
 	parentId, _ := item.Ppid()
-	cpu, _ := item.Percent(time.Duration(cpuInterval))
+	cpu, _ := item.Percent(time.Duration(0))
 	exec, _ := item.Exe()
 	ioCounters, _ := item.IOCounters()
 	status, _ := item.Status()
@@ -513,6 +520,14 @@ func getProccessInfo(item *process.Process, collector *ProcessCollector) Process
 	}
 	pi.status = status[0]
 	return pi
+}
+
+/*
+过滤掉首次获取CPU占用率为0的情况
+*/
+func getDesignedProccessInfoCpu(item *process.Process) *process.Process {
+	item.Percent(time.Duration(0))
+	return item
 }
 
 /*
@@ -653,6 +668,11 @@ func createDesignedProcessMetric(item *DesignedProcessInfo, metricType int) prom
 }
 
 /*
+定义全局变量用于缓存进程信息
+*/
+var processCache []*process.Process
+
+/*
 get all process and sort by pid
 @return 获取进程信息
 */
@@ -670,7 +690,8 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 			if collecType == 1 {
 				newProcesses := []ProcessInfo{}
 				for _, process := range allProcess {
-					newProcesses = append(newProcesses, getProccessInfo(process, collector))
+					lastProcess := getProccessInfoCpu(process)
+					newProcesses = append(newProcesses, getProccessInfo(lastProcess))
 				}
 				return newProcesses, nil, nil
 			} else if collecType == 2 {
@@ -687,7 +708,8 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 							}
 							// 检查进程名称是否匹配
 							if strings.Contains(command, designedCommand) {
-								designedProcessResult = append(designedProcessResult, getDesignedProccessInfo(p, collector, designedCommand))
+								lastDesignedProcess := getDesignedProccessInfoCpu(p)
+								designedProcessResult = append(designedProcessResult, getDesignedProccessInfo(lastDesignedProcess, collector, designedCommand))
 							}
 						}
 					}
@@ -698,7 +720,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 			} else {
 				newProcesses := []ProcessInfo{}
 				for _, process := range allProcess {
-					newProcesses = append(newProcesses, getProccessInfo(process, collector))
+					newProcesses = append(newProcesses, getProccessInfo(process))
 				}
 				designedProcessResult := []DesignedProcessInfo{}
 				designedCommands := collector.designed
