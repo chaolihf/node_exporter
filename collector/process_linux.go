@@ -675,12 +675,17 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 				newProcesses := []ProcessInfo{}
 				for _, process := range allProcess {
 					processPid, _ := process.Ppid()
-					//若该pid存在于先前的map中
-					if _, ok := processMap[processPid]; ok {
-						process = processMap[processPid]
-						processInfo, lastProcess := getProccessInfo(process)
-						newProcesses = append(newProcesses, processInfo)
-						processMap[processPid] = lastProcess
+					if processMap != nil {
+						if _, ok := processMap[processPid]; ok {
+							process = processMap[processPid]
+							processInfo, lastProcess := getProccessInfo(process)
+							newProcesses = append(newProcesses, processInfo)
+							processMap[processPid] = lastProcess
+						} else {
+							processInfo, lastProcess := getProccessInfo(process)
+							newProcesses = append(newProcesses, processInfo)
+							processMap[processPid] = lastProcess
+						}
 					} else {
 						processInfo, lastProcess := getProccessInfo(process)
 						newProcesses = append(newProcesses, processInfo)
@@ -703,11 +708,17 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 							// 检查进程名称是否匹配
 							if strings.Contains(command, designedCommand) {
 								processPid, _ := p.Ppid()
-								if _, ok := processMap[processPid]; ok {
-									p = processMap[processPid]
-									processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
-									designedProcessResult = append(designedProcessResult, processInfo)
-									processMap[processPid] = lastProcess
+								if processMap != nil {
+									if _, ok := processMap[processPid]; ok {
+										p = processMap[processPid]
+										processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
+										designedProcessResult = append(designedProcessResult, processInfo)
+										processMap[processPid] = lastProcess
+									} else {
+										processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
+										designedProcessResult = append(designedProcessResult, processInfo)
+										processMap[processPid] = lastProcess
+									}
 								} else {
 									processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
 									designedProcessResult = append(designedProcessResult, processInfo)
@@ -725,11 +736,17 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 				for _, process := range allProcess {
 					processPid, _ := process.Ppid()
 					//若该pid存在于先前的map中
-					if _, ok := processMap[processPid]; ok {
-						process = processMap[processPid]
-						processInfo, lastProcess := getProccessInfo(process)
-						newProcesses = append(newProcesses, processInfo)
-						processMap[processPid] = lastProcess
+					if processMap != nil {
+						if _, ok := processMap[processPid]; ok {
+							process = processMap[processPid]
+							processInfo, lastProcess := getProccessInfo(process)
+							newProcesses = append(newProcesses, processInfo)
+							processMap[processPid] = lastProcess
+						} else {
+							processInfo, lastProcess := getProccessInfo(process)
+							newProcesses = append(newProcesses, processInfo)
+							processMap[processPid] = lastProcess
+						}
 					} else {
 						processInfo, lastProcess := getProccessInfo(process)
 						newProcesses = append(newProcesses, processInfo)
