@@ -651,9 +651,6 @@ func createDesignedProcessMetric(item *DesignedProcessInfo, metricType int) prom
 	return metric
 }
 
-/*
-定义全局变量用于缓存进程信息
-*/
 var processMap map[int32]*process.Process
 
 /*
@@ -673,21 +670,22 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 		} else {
 			if collecType == 1 {
 				newProcesses := []ProcessInfo{}
-				for _, process := range allProcess {
-					processPid, _ := process.Ppid()
+				for _, process1 := range allProcess {
+					processPid, _ := process1.Ppid()
 					if processMap != nil {
 						if _, ok := processMap[processPid]; ok {
-							process = processMap[processPid]
-							processInfo, lastProcess := getProccessInfo(process)
+							process1 = processMap[processPid]
+							processInfo, lastProcess := getProccessInfo(process1)
 							newProcesses = append(newProcesses, processInfo)
 							processMap[processPid] = lastProcess
 						} else {
-							processInfo, lastProcess := getProccessInfo(process)
+							processInfo, lastProcess := getProccessInfo(process1)
 							newProcesses = append(newProcesses, processInfo)
 							processMap[processPid] = lastProcess
 						}
 					} else {
-						processInfo, lastProcess := getProccessInfo(process)
+						processMap = make(map[int32]*process.Process)
+						processInfo, lastProcess := getProccessInfo(process1)
 						newProcesses = append(newProcesses, processInfo)
 						processMap[processPid] = lastProcess
 					}
@@ -720,6 +718,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 										processMap[processPid] = lastProcess
 									}
 								} else {
+									processMap = make(map[int32]*process.Process)
 									processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
 									designedProcessResult = append(designedProcessResult, processInfo)
 									processMap[processPid] = lastProcess
@@ -733,22 +732,23 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 				}
 			} else {
 				newProcesses := []ProcessInfo{}
-				for _, process := range allProcess {
-					processPid, _ := process.Ppid()
+				for _, process1 := range allProcess {
+					processPid, _ := process1.Ppid()
 					//若该pid存在于先前的map中
 					if processMap != nil {
 						if _, ok := processMap[processPid]; ok {
-							process = processMap[processPid]
-							processInfo, lastProcess := getProccessInfo(process)
+							process1 = processMap[processPid]
+							processInfo, lastProcess := getProccessInfo(process1)
 							newProcesses = append(newProcesses, processInfo)
 							processMap[processPid] = lastProcess
 						} else {
-							processInfo, lastProcess := getProccessInfo(process)
+							processInfo, lastProcess := getProccessInfo(process1)
 							newProcesses = append(newProcesses, processInfo)
 							processMap[processPid] = lastProcess
 						}
 					} else {
-						processInfo, lastProcess := getProccessInfo(process)
+						processMap = make(map[int32]*process.Process)
+						processInfo, lastProcess := getProccessInfo(process1)
 						newProcesses = append(newProcesses, processInfo)
 						processMap[processPid] = lastProcess
 					}
