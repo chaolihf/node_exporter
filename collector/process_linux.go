@@ -69,6 +69,7 @@ type ProcessCollector struct {
 	interval                int
 	cpuInterval             int64
 	lastCollectTime         int64
+	lastFullCollectTime     int64
 	lastProcessInfo         []ProcessInfo
 	lastDesignedProcessInfo []DesignedProcessInfo
 	cpuOffset               int
@@ -126,36 +127,38 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 				commandMap[command] = processObjectId
 			}
 			return &ProcessCollector{
-				interval:         jsonProcessInfo.GetInt("interval"),
-				cpuInterval:      jsonConfigInfos.GetLong("cpuInterval"),
-				lastCollectTime:  0,
-				cpuOffset:        jsonProcessInfo.GetInt("cpuOffset"),
-				memoryOffset:     jsonProcessInfo.GetInt("memoryOffset"),
-				ioSpeedPerSecond: jsonProcessInfo.GetInt("ioSpeedPerSecond"),
-				openFileOffset:   jsonProcessInfo.GetInt("openFileOffset"),
-				threadOffset:     jsonProcessInfo.GetInt("threadOffset"),
-				localLog:         jsonProcessInfo.GetBool("localLog"),
-				enable:           jsonProcessInfo.GetInt("enable"),
-				designedType:     jsonProcessInfo.GetBool("designedType"),
-				designed:         commands,
-				commandMap:       commandMap,
+				interval:            jsonProcessInfo.GetInt("interval"),
+				cpuInterval:         jsonConfigInfos.GetLong("cpuInterval"),
+				lastCollectTime:     0,
+				lastFullCollectTime: 0,
+				cpuOffset:           jsonProcessInfo.GetInt("cpuOffset"),
+				memoryOffset:        jsonProcessInfo.GetInt("memoryOffset"),
+				ioSpeedPerSecond:    jsonProcessInfo.GetInt("ioSpeedPerSecond"),
+				openFileOffset:      jsonProcessInfo.GetInt("openFileOffset"),
+				threadOffset:        jsonProcessInfo.GetInt("threadOffset"),
+				localLog:            jsonProcessInfo.GetBool("localLog"),
+				enable:              jsonProcessInfo.GetInt("enable"),
+				designedType:        jsonProcessInfo.GetBool("designedType"),
+				designed:            commands,
+				commandMap:          commandMap,
 			}, nil
 		}
 	}
 	return &ProcessCollector{
-		interval:         86400,
-		cpuInterval:      5,
-		lastCollectTime:  0,
-		cpuOffset:        30,
-		memoryOffset:     200000000,
-		ioSpeedPerSecond: 5000000,
-		openFileOffset:   100,
-		threadOffset:     30,
-		localLog:         true,
-		enable:           1,
-		designedType:     false,
-		designed:         nil,
-		commandMap:       nil,
+		interval:            86400,
+		cpuInterval:         5,
+		lastCollectTime:     0,
+		lastFullCollectTime: 0,
+		cpuOffset:           30,
+		memoryOffset:        200000000,
+		ioSpeedPerSecond:    5000000,
+		openFileOffset:      100,
+		threadOffset:        30,
+		localLog:            true,
+		enable:              1,
+		designedType:        false,
+		designed:            nil,
+		commandMap:          nil,
 	}, nil
 }
 
@@ -163,16 +166,17 @@ func newProcessCollector(g_logger log.Logger) (Collector, error) {
 每隔一段时间更新全量的数据，否正根据规则只更新变更的数据
 */
 func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
-	lastTime := collector.lastCollectTime
+	//lastTime := collector.lastCollectTime
+	lastFullTime := collector.lastFullCollectTime
 	designedType := collector.designedType
 	currentTime := time.Now().Unix()
 	var err error
 	var allProcessInfo []ProcessInfo
 	var designedProcess []DesignedProcessInfo
 	var isSendAll bool
-	if lastTime == 0 || currentTime-lastTime > int64(collector.interval) {
+	if lastFullTime == 0 || currentTime-lastFullTime > int64(collector.interval) {
 		isSendAll = true
-		collector.lastCollectTime = currentTime
+		//collector.lastFullCollectTime = currentTime
 	} else {
 		isSendAll = false
 	}
@@ -211,8 +215,11 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 					for _, process := range designedProcess {
 						ch <- createDesignedProcessMetric(&process, DT_All)
 					}
+					collector.lastFullCollectTime = currentTime
 					collector.lastDesignedProcessInfo = designedProcess
 				}
+				ch <- createSuccessMetric("designedProcess", 1)
+				collector.lastCollectTime = currentTime
 			} else {
 				if collector.localLog {
 					for _, process := range designedProcess {
@@ -263,6 +270,7 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 					ch <- createProcessMetric(&process, DT_All)
 				}
 				collector.lastProcessInfo = allProcessInfo
+				collector.lastFullCollectTime = currentTime
 			}
 			ch <- createSuccessMetric("process", 1)
 			collector.lastCollectTime = currentTime
