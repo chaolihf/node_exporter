@@ -2,6 +2,7 @@ package collector
 
 import (
 	"bytes"
+	"fmt"
 	"io/fs"
 	"os"
 	"time"
@@ -89,7 +90,7 @@ func (collector *FileCheckCollector) Update(ch chan<- prometheus.Metric) error {
 							if _, ok := lastFileInfoMap[fileCheckPath]; ok {
 								//若文件内容未发生改变
 								if bytes.Equal(lastFileInfoMap[fileCheckPath], content) {
-									logger.Log("文件内容未发生改变")
+									logger.Log("fileCheck", fmt.Sprintf("filePath:%s", fileCheckPath))
 								} else {
 									lastFileInfoMap[fileCheckPath] = content
 									//获取文件指标metric
