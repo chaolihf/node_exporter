@@ -104,8 +104,8 @@ func (collector *FileCheckCollector) Update(ch chan<- prometheus.Metric) error {
 					} else {
 						ch <- createFileCheckMetric(nil, DT_Delete, info, collector, fileCheckPath)
 					}
-					ch <- createSuccessMetric("fileCheck", 1)
 				}
+				ch <- createSuccessMetric("fileCheck", 1)
 			}
 		}
 	}
