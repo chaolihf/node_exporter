@@ -33,8 +33,14 @@
         "interval": 86400,
         "counterOffset":100,
         "localLog":true
-    }
-    "":{
-        
+    },
+    "fileCheck":{
+        "enable":true,
+        "hostIp":"1.2.3.4",
+        "objectId":"fdhjkafhdjksfh",
+        "filePath":[
+            {"path":"/app/test1.txt"},
+            {"path":"/app/test2.txt"}
+        ]
     }
 }
