@@ -19,12 +19,12 @@ type FileCheckCollector struct {
 }
 
 type FileCheckInfo struct {
-	collectTime int64
-	modTime     int64
-	ip          string
-	objectId    string
-	fileInfo    string
-	filePath    string
+	fileCheckStatus string
+	modTime         int64
+	ip              string
+	objectId        string
+	fileInfo        string
+	filePath        string
 }
 
 // 声明全局变量用于内存中存储比较历史文件信息，键值对为指定文件路径:文件内容MD5
@@ -84,25 +84,26 @@ func (collector *FileCheckCollector) Update(ch chan<- prometheus.Metric) error {
 						content, err := os.ReadFile(fileCheckPath)
 						if err != nil {
 							logger.Log("读取文件出错:"+filePath, err)
-							return nil
+							ch <- createFileCheckMetric("false", nil, DT_All, info, collector, fileCheckPath)
 						} else {
 							//判断该路径文件是否存在于map中
 							if _, ok := lastFileInfoMap[fileCheckPath]; ok {
 								//若文件内容未发生改变
 								if bytes.Equal(lastFileInfoMap[fileCheckPath], content) {
 									logger.Log("fileCheck", fmt.Sprintf("filePath:%s", fileCheckPath))
+									ch <- createFileCheckMetric("success", nil, DT_Add, info, collector, fileCheckPath)
 								} else {
 									lastFileInfoMap[fileCheckPath] = content
 									//获取文件指标metric
-									ch <- createFileCheckMetric(content, DT_Changed, info, collector, fileCheckPath)
+									ch <- createFileCheckMetric("success", content, DT_Changed, info, collector, fileCheckPath)
 								}
 							} else {
 								lastFileInfoMap[fileCheckPath] = content
-								ch <- createFileCheckMetric(content, DT_Add, info, collector, fileCheckPath)
+								ch <- createFileCheckMetric("success", content, DT_All, info, collector, fileCheckPath)
 							}
 						}
 					} else {
-						ch <- createFileCheckMetric(nil, DT_Delete, info, collector, fileCheckPath)
+						ch <- createFileCheckMetric("success", nil, DT_Delete, info, collector, fileCheckPath)
 					}
 				}
 				ch <- createSuccessMetric("fileCheck", 1)
@@ -124,15 +125,15 @@ func fileExists(filePath string) (bool, fs.FileInfo) {
 
 /*
 创建fileCheck指标
-collectTime int64
-modTime     int64
-ip          string
-objectId    string
-fileInfo    string
+fileCheckStatus string
+modTime         int64
+ip              string
+objectId        string
+fileInfo        string
 */
-func createFileCheckMetric(content []byte, metricType int, info fs.FileInfo, collector *FileCheckCollector, filePath string) prometheus.Metric {
+func createFileCheckMetric(fileCheckStatus string, content []byte, metricType int, info fs.FileInfo, collector *FileCheckCollector, filePath string) prometheus.Metric {
 	var tags = make(map[string]string)
-	tags["collectTime"] = time.Now().Format("2006-01-02 15:04:05")
+	tags["fileCheckStatus"] = fileCheckStatus
 	if info == nil {
 		tags["modTime"] = time.Now().Format("2006-01-02 15:04:05")
 	} else {
