@@ -14,14 +14,12 @@ import (
 
 type FileCheckCollector struct {
 	enable   bool
-	hostIp   string
 	objectId string
 }
 
 type FileCheckInfo struct {
 	fileCheckStatus string
 	modTime         int64
-	ip              string
 	objectId        string
 	fileInfo        string
 	filePath        string
@@ -51,7 +49,6 @@ func newFileCheckCollector(g_logger log.Logger) (Collector, error) {
 			jsonFileCheckInfo := jsonConfigInfos.GetJsonObject("fileCheck")
 			return &FileCheckCollector{
 				enable:   jsonFileCheckInfo.GetBool("enable"),
-				hostIp:   jsonFileCheckInfo.GetString("hostIp"),
 				objectId: jsonFileCheckInfo.GetString("objectId"),
 			}, nil
 		}
@@ -139,8 +136,8 @@ func createFileCheckMetric(fileCheckStatus string, content []byte, metricType in
 	} else {
 		tags["modTime"] = info.ModTime().Format("2006-01-02 15:04:05")
 	}
-	tags["ip"] = collector.hostIp
-	tags["objectId"] = collector.objectId
+	//tags["ip"] = collector.hostIp
+	tags["objectSceneId"] = collector.objectId
 	tags["fileInfo"] = string(content)
 	tags["filePath"] = filePath
 	metricDesc := prometheus.NewDesc("fileCheck", "fileCheck", nil, tags)
