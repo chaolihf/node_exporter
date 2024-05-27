@@ -13,8 +13,7 @@ import (
 )
 
 type FileCheckCollector struct {
-	enable   bool
-	objectId string
+	enable bool
 }
 
 type FileCheckInfo struct {
@@ -48,8 +47,8 @@ func newFileCheckCollector(g_logger log.Logger) (Collector, error) {
 		} else {
 			jsonFileCheckInfo := jsonConfigInfos.GetJsonObject("fileCheck")
 			return &FileCheckCollector{
-				enable:   jsonFileCheckInfo.GetBool("enable"),
-				objectId: jsonFileCheckInfo.GetString("objectId"),
+				enable: jsonFileCheckInfo.GetBool("enable"),
+				//objectId: jsonFileCheckInfo.GetString("objectId"),
 			}, nil
 		}
 	}
@@ -73,34 +72,35 @@ func (collector *FileCheckCollector) Update(ch chan<- prometheus.Metric) error {
 				return err
 			} else {
 				//初始化字符串切片存放需要采集的指定路径下的文件
-				for _, fileCheckPath := range jsonConfigInfos.GetJsonObject("fileCheck").GetJsonArray("filePath") {
-					fileCheckPath := fileCheckPath.GetString("path")
+				for _, fileCheckPathJson := range jsonConfigInfos.GetJsonObject("fileCheck").GetJsonArray("filePath") {
+					fileCheckPath := fileCheckPathJson.GetString("path")
+					objectId := fileCheckPathJson.GetString("id")
 					//判断指定路径下的文件是否存在，若文件存在
 					exists, info := fileExists(fileCheckPath)
 					if exists {
 						content, err := os.ReadFile(fileCheckPath)
 						if err != nil {
 							logger.Log("读取文件出错:"+filePath, err)
-							ch <- createFileCheckMetric("false", nil, DT_All, info, collector, fileCheckPath)
+							ch <- createFileCheckMetric("false", nil, DT_All, info, objectId, fileCheckPath)
 						} else {
 							//判断该路径文件是否存在于map中
 							if _, ok := lastFileInfoMap[fileCheckPath]; ok {
 								//若文件内容未发生改变
 								if bytes.Equal(lastFileInfoMap[fileCheckPath], content) {
 									logger.Log("fileCheck", fmt.Sprintf("filePath:%s", fileCheckPath))
-									ch <- createFileCheckMetric("success", nil, DT_Add, info, collector, fileCheckPath)
+									ch <- createFileCheckMetric("success", nil, DT_Add, info, objectId, fileCheckPath)
 								} else {
 									lastFileInfoMap[fileCheckPath] = content
 									//获取文件指标metric
-									ch <- createFileCheckMetric("success", content, DT_Changed, info, collector, fileCheckPath)
+									ch <- createFileCheckMetric("success", content, DT_Changed, info, objectId, fileCheckPath)
 								}
 							} else {
 								lastFileInfoMap[fileCheckPath] = content
-								ch <- createFileCheckMetric("success", content, DT_All, info, collector, fileCheckPath)
+								ch <- createFileCheckMetric("success", content, DT_All, info, objectId, fileCheckPath)
 							}
 						}
 					} else {
-						ch <- createFileCheckMetric("success", nil, DT_Delete, info, collector, fileCheckPath)
+						ch <- createFileCheckMetric("success", nil, DT_Delete, info, objectId, fileCheckPath)
 					}
 				}
 				ch <- createSuccessMetric("fileCheck", 1)
@@ -128,7 +128,7 @@ ip              string
 objectId        string
 fileInfo        string
 */
-func createFileCheckMetric(fileCheckStatus string, content []byte, metricType int, info fs.FileInfo, collector *FileCheckCollector, filePath string) prometheus.Metric {
+func createFileCheckMetric(fileCheckStatus string, content []byte, metricType int, info fs.FileInfo, objectId string, filePath string) prometheus.Metric {
 	var tags = make(map[string]string)
 	tags["fileCheckStatus"] = fileCheckStatus
 	if info == nil {
@@ -137,7 +137,7 @@ func createFileCheckMetric(fileCheckStatus string, content []byte, metricType in
 		tags["modTime"] = info.ModTime().Format("2006-01-02 15:04:05")
 	}
 	//tags["ip"] = collector.hostIp
-	tags["objectSceneId"] = collector.objectId
+	tags["objectSceneId"] = objectId
 	tags["fileInfo"] = string(content)
 	tags["filePath"] = filePath
 	metricDesc := prometheus.NewDesc("fileCheck", "fileCheck", nil, tags)
