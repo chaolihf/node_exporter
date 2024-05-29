@@ -1,0 +1,22 @@
+{
+    "scripts":[
+        {
+            "name": "",
+            "host":"2",
+            "user":"",
+            "password":"",
+            "mode":"huawei",
+            "command":"display arp",
+            "prompt":""
+        },
+        {
+            "name": "2",
+            "host":"3",
+            "user":"",
+            "password":"",
+            "mode":"h3",
+            "command":"display arp"
+
+        }
+    ]
+}
