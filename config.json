@@ -1,4 +1,5 @@
 {
+    "readTimeout":5,
     "shellScript":
         [
             
@@ -10,11 +11,37 @@
         "ioSpeedPerSecond": 5000000,
         "openFileOffset": 100,
         "threadOffset": 30,
-        "localLog":true
+        "localLog":true,
+        "enable":0,
+        "designedType":false
     },
+    "designedProcess":[
+        {
+            "command":["postgres"],
+            "process_object_id":["123"]
+        },
+        {
+            "command":["docker-proxy"],
+            "process_object_id":["231"]
+        },
+        {
+            "command":["java"],
+            "process_object_id":["321"]
+        }
+    ],
     "network":{
         "interval": 86400,
         "counterOffset":100,
         "localLog":true
+    },
+    "fileCheck":{
+        "enable":true,
+        "hostIp":"1.2.3.4",
+        "filePath":[
+            {"path":"/app/test1.txt",
+               "id":"dhaskdjshajk"},
+            {"path":"/app/test2.txt",
+               "id":"dhaskdjshajk"}
+        ]
     }
 }
