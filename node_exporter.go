@@ -31,7 +31,8 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
-	hadoop "github.com/chaolihf/node_exporter/exporters"
+	"github.com/chaolihf/node_exporter/exporters/hadoop"
+	"github.com/chaolihf/node_exporter/exporters/script"
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -55,6 +56,12 @@ type handler struct {
 	maxRequests             int
 	logger                  log.Logger
 }
+
+var (
+	readTimeout          int  = 10
+	enableHadoopExporter bool = false
+	enableScriptExporter bool = false
+)
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
 	h := &handler{
@@ -147,26 +154,30 @@ func (h *handler) innerHandler(filters ...string) (http.Handler, error) {
 	return handler, nil
 }
 
-func initReadTimeConfig() (int, error) {
+func initReadConfig() error {
 	filePath := "config.json"
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		stdlog.Printf("读取文件出错: %s, %v\n", filePath, err)
-		return 10, err
+		return err
 	} else {
 		jsonConfigInfos, err := jjson.NewJsonObject([]byte(content))
 		if err != nil {
 			stdlog.Printf("JSON文件格式出错:%s", err)
-			return 10, err
+			return err
 		} else {
-			readTimeout := jsonConfigInfos.GetInt("readTimeout")
-			if readTimeout != 0 {
-				return readTimeout, nil
-			} else {
-				return 10, nil
+			readTimeout = jsonConfigInfos.GetInt("readTimeout")
+			jsonModuleInfos := jsonConfigInfos.GetJsonArray("module")
+			for _, jsonModuleInfo := range jsonModuleInfos {
+				if jsonModuleInfo.GetStringValue() == "hadoop_exporter" {
+					enableHadoopExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "script_exporter" {
+					enableScriptExporter = true
+				}
 			}
 		}
 	}
+	return nil
 }
 
 func Main() {
@@ -242,21 +253,26 @@ func Main() {
 		// }
 		// http.Handle("/", landingPage)
 	}
-	_, err = os.Stat("hadoopConfig.json")
-	if err == nil {
-		http.HandleFunc("/hadoopMetrics", func(w http.ResponseWriter, r *http.Request) {
-			hadoop.SetLogger(logger)
-			hadoop.HadoopHandler(w, r)
+
+	err = initReadConfig()
+	if err != nil {
+		level.Info(logger).Log("msg", "Reading config.json err:", err)
+	}
+	if enableHadoopExporter {
+		_, err = os.Stat("hadoopConfig.json")
+		if err == nil {
+			http.HandleFunc("/hadoopMetrics", func(w http.ResponseWriter, r *http.Request) {
+				hadoop.RequestHandler(w, r)
+			})
+		}
+		hadoop.SetLogger(logger)
+	}
+	if enableScriptExporter {
+		http.HandleFunc("/scriptMetrics", func(w http.ResponseWriter, r *http.Request) {
+			script.RequestHandler(w, r)
 		})
 	}
 
-	hadoop.SetLogger(logger)
-
-	//增加读取超时设置，防范慢攻击
-	readTimeout, err := initReadTimeConfig()
-	if err != nil {
-		level.Info(logger).Log("msg", "Reading readTimeoutConfig", err)
-	}
 	tlsconf := &tls.Config{
 		InsecureSkipVerify:       true,
 		MaxVersion:               tls.VersionTLS13,

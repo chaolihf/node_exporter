@@ -141,7 +141,7 @@ func SetLogger(g_logger log.Logger) {
 		isHadoopInited = true
 	}
 }
-func HadoopHandler(w http.ResponseWriter, r *http.Request) {
+func RequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	registry := prometheus.NewRegistry()
 	params := r.URL.Query()
