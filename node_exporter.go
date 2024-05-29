@@ -28,6 +28,7 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
+	hadoop "github.com/chaolihf/node_exporter/exporters"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -205,6 +206,12 @@ func Main() {
 		}
 		http.Handle("/", landingPage)
 	}
+	http.HandleFunc("/hadoopMetrics", func(w http.ResponseWriter, r *http.Request) {
+		hadoop.SetLogger(logger)
+		hadoop.HadoopHandler(w, r)
+	})
+
+	hadoop.SetLogger(logger)
 
 	server := &http.Server{}
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
