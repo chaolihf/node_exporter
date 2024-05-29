@@ -13,5 +13,6 @@ func TestParse(t *testing.T) {
 		return
 	}
 	contentStr := string(content)
-	CreateMetrics(ParseTableData(contentStr))
+	CreateMetrics(ParseTableData(contentStr, "\r\n"),
+		[]string{"ip", "mac", "expire", "type", "interface", "instance", "vlan"})
 }

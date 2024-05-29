@@ -45,7 +45,7 @@ ExecuteCommand 执行命令，当需要
 huawei' clear line command is "\x1B[42D"
 */
 func (thisSession *SshSession) ExecuteMoreCommand(command string, moreCommand string,
-	prompt string, clearLine string, startLine string, endLine string) (string, error) {
+	prompt string, clearLine string, startLine string, endLine string, ignoreEcho bool) (string, error) {
 	var result string
 	var err error
 	if thisSession.session != nil {
@@ -66,6 +66,7 @@ func (thisSession *SshSession) ExecuteMoreCommand(command string, moreCommand st
 			n, err := stdout.Read(buf)
 			if err != nil {
 				if err == io.EOF {
+					result = strings.Replace(output.String(), prompt, "", 1)
 					break
 				}
 			}
@@ -73,35 +74,62 @@ func (thisSession *SshSession) ExecuteMoreCommand(command string, moreCommand st
 			bufferContent := output.String()
 			if strings.Contains(bufferContent, moreCommand) {
 				result = result + strings.Replace(bufferContent, moreCommand, "", 1)
-				// 发送空格字符以显示下一页
 				fmt.Fprintf(stdin, " ")
 				time.Sleep(100 * time.Millisecond)
 				output.Reset()
-			} else if strings.Contains(bufferContent, prompt) {
-				result = result + strings.Replace(bufferContent, prompt, "", 1)
-				break
+			} else {
+				firstIndex := strings.Index(bufferContent, prompt)
+				if firstIndex != -1 {
+					if ignoreEcho {
+						ignoreEcho = false
+						lastIndex := strings.LastIndex(bufferContent, prompt)
+						if firstIndex != lastIndex {
+							result = result + strings.Replace(bufferContent, prompt, "", 1)
+							break
+						} else {
+							output.Reset()
+							output.WriteString(bufferContent[firstIndex+len(prompt):])
+						}
+					} else {
+						result = result + strings.Replace(bufferContent, prompt, "", 1)
+						break
+					}
+				}
 			}
 		}
 		if len(clearLine) > 0 {
 			result = strings.ReplaceAll(result, clearLine, "")
 		}
 		if len(startLine) > 0 {
-			result = result[strings.Index(result, startLine)+len(startLine):]
+			index := strings.Index(result, startLine)
+			if index != -1 {
+				result = result[index+len(startLine):]
+			}
 		}
 		if len(endLine) > 0 {
-			result = result[:strings.Index(result, endLine)]
+			index := strings.Index(result, endLine)
+			if index != -1 {
+				result = result[:index]
+			}
 		}
 	}
 	return result, err
 }
 
-func (thisSession *SshSession) ExecuteCommand(command string) (string, error) {
+func (thisSession *SshSession) ExecuteCommand(command string, startLine string) (string, error) {
 	var output []byte
 	var err error
 	if thisSession.session != nil {
 		output, err = thisSession.session.Output(command)
 	}
-	return string(output), err
+	result := string(output)
+	if len(startLine) > 0 {
+		index := strings.Index(result, startLine)
+		if index != -1 {
+			result = result[index+len(startLine):]
+		}
+	}
+	return result, err
 }
 
 func (thisSession *SshSession) Close() {
