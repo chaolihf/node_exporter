@@ -657,7 +657,7 @@ func createDesignedProcessMetric(item *DesignedProcessInfo, metricType int) prom
 	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
 	tags["writeCount"] = fmt.Sprintf("%d", item.writeCount)
 	tags["status"] = item.status
-	tags["processObjectId"] = item.processObjectId
+	tags["process_object_id"] = item.processObjectId
 	metricDesc := prometheus.NewDesc("designedProcess", "designedProcess", nil, tags)
 	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(metricType))
 	return metric
