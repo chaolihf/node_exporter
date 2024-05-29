@@ -3,6 +3,7 @@ package hadoop
 import (
 	"encoding/json"
 	"fmt"
+	stdlog "log"
 	"net/http"
 	"os"
 	"reflect"
@@ -122,11 +123,11 @@ func init() {
 	filePath := "hadoopConfig.json"
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		level.Error(logger).Log("err", "读取文件出错:"+filePath+err.Error())
+		stdlog.Printf("读取文件出错:%s,%s", filePath, err.Error())
 	} else {
 		err := json.Unmarshal(content, &exporterInfo)
 		if err != nil {
-			level.Error(logger).Log("err", "解析文件出错:"+filePath+err.Error())
+			stdlog.Printf("解析文件出错:%s", filePath+err.Error())
 		}
 	}
 	registerNameHandler("Hadoop:service=HBase,name=RegionServer,sub=Regions", handlerRegionServerRegions)
