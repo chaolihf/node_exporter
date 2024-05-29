@@ -34,7 +34,7 @@ func (collector *scriptCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func getH3ScriptResult() []prometheus.Metric {
-	session := sshclient.NewSshSession("134.95.237.121:2223", "nmread", "Siemens#202405", 10)
+	session := sshclient.NewSshSession("", "", "", 10)
 	if session == nil {
 		return nil
 	}
@@ -47,7 +47,7 @@ func getH3ScriptResult() []prometheus.Metric {
 }
 
 func getHuaweiScriptResult() []prometheus.Metric {
-	session := sshclient.NewSshSession("134.95.237.121:2222", "nmread", "Siemens#202405", 10)
+	session := sshclient.NewSshSession("", "", "", 10)
 	if session == nil {
 		return nil
 	}
