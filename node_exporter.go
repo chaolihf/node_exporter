@@ -23,6 +23,7 @@ import (
 	"os/user"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prometheus/common/promlog"
@@ -199,7 +200,13 @@ func Main() {
 	kingpin.Version(version.Print("node_exporter"))
 	kingpin.CommandLine.UsageWriter(os.Stdout)
 	kingpin.HelpFlag.Short('h')
-	commands, err := kingpin.CommandLine.Parse([]string{})
+	var params []string
+	for _, arg := range os.Args[1:] {
+		if arg != "-test.run" && !strings.HasPrefix(arg, "^") {
+			params = append(params, arg)
+		}
+	}
+	commands, err := kingpin.CommandLine.Parse(params)
 	kingpin.MustParse(commands, err)
 	logger := promlog.New(promlogConfig)
 
