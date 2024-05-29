@@ -1,7 +1,10 @@
 package script
 
 import (
+	"encoding/json"
+	stdlog "log"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -14,10 +17,38 @@ import (
 var logger log.Logger
 
 type scriptCollector struct {
-	remoteUrl    string
-	modulePrefix string
-	showAll      bool
+	TargetName string
 }
+
+type ShellConfig struct {
+	Name     string `json:"name"`
+	Host     string `json:"host"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	Mode     string `json:"mode"`
+	Command  string `json:"command"`
+	Prompt   string `json:"prompt"`
+}
+
+type ExporterConfig struct {
+	Shells []ShellConfig `json:"scripts"`
+}
+
+type Template struct {
+	Name         string
+	Pattern      string
+	LineSperator string
+	MoreCommand  string
+	ClearLine    string
+	StartLine    string
+	EndLine      string
+	ignoreEcho   bool
+	Fields       []string
+}
+
+var exporterInfo ExporterConfig
+
+var switchTemplates map[string]Template
 
 var isScriptInited = false
 
@@ -26,46 +57,47 @@ func (collector *scriptCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *scriptCollector) Collect(ch chan<- prometheus.Metric) {
-	//metrics := getHuaweiScriptResult()
-	metrics := getH3ScriptResult()
-	for _, metric := range metrics {
-		ch <- metric
+	for _, shellInfo := range exporterInfo.Shells {
+		if shellInfo.Name == collector.TargetName {
+			var metrics []prometheus.Metric
+			switch shellInfo.Mode {
+			case "h3":
+				metrics = getScriptResult(shellInfo, switchTemplates[shellInfo.Mode], true)
+			case "huawei":
+				metrics = getScriptResult(shellInfo, switchTemplates[shellInfo.Mode], false)
+			}
+			for _, metric := range metrics {
+				ch <- metric
+			}
+			break
+		}
 	}
+
 }
 
-func getH3ScriptResult() []prometheus.Metric {
-	session := sshclient.NewSshSession("", "", "", 10)
+func getScriptResult(shellInfo ShellConfig, template Template, ignoreEcho bool) []prometheus.Metric {
+	session := sshclient.NewSshSession(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
 	if session == nil {
 		return nil
 	}
 	defer session.Close()
-	content, _ := session.ExecuteCommand("display arp", "Aging Type \r\r\n")
-	tableInfo := ParseTableData(content, "\r\r\n", `(.{16})(.{15})(.{11})(.{25})(.{6})(.*)`)
-	metrics := CreateMetrics(tableInfo,
-		[]string{"ip", "mac", "vlan", "interface", "expire", "type", "instance"})
-	return metrics
-}
-
-func getHuaweiScriptResult() []prometheus.Metric {
-	session := sshclient.NewSshSession("", "", "", 10)
-	if session == nil {
-		return nil
+	var content string
+	var err error
+	if !ignoreEcho {
+		content, err = session.ExecuteMoreCommand(shellInfo.Command,
+			template.MoreCommand, shellInfo.Prompt, template.ClearLine,
+			template.StartLine, template.EndLine, false)
+	} else {
+		content, err = session.ExecuteCommand(shellInfo.Command, template.StartLine)
 	}
-	defer session.Close()
-	content, err := session.ExecuteMoreCommand("display arp",
-		"---- More ----", "<TDL-JF-9310-1>", "\x1B[42D",
-		"------------------------------------------------------------------------------\r\n",
-		"------------------------------------------------------------------------------\r\n",
-		false)
 	if err != nil {
 		return nil
 	}
 	// file, _ := os.Create("temp.txt")
 	// file.WriteString(content)
 	// file.Close()
-	tableInfo := ParseTableData(content, "\r\n", `(.{16})(.{16})(.{10})(.{12})(.{15})(.*)`)
-	metrics := CreateMetrics(tableInfo,
-		[]string{"ip", "mac", "expire", "type", "interface", "instance", "vlan"})
+	tableInfo := ParseTableData(content, template.LineSperator, template.Pattern)
+	metrics := CreateMetrics(tableInfo, template.Fields)
 
 	return metrics
 }
@@ -110,6 +142,30 @@ func ParseTableData(content string, lineSperator string, rowPattern string) [][]
 }
 
 func init() {
+	filePath := "scriptConfig.json"
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		stdlog.Printf("读取文件出错:%s,%s", filePath, err.Error())
+	} else {
+		err := json.Unmarshal(content, &exporterInfo)
+		if err != nil {
+			stdlog.Printf("解析文件出错:%s", filePath+err.Error())
+		}
+	}
+	switchTemplates = make(map[string]Template)
+	switchTemplates["huawei"] = Template{ignoreEcho: false, Name: "huawei", Pattern: `(.{16})(.{16})(.{10})(.{12})(.{15})(.*)`,
+		LineSperator: "\r\n", MoreCommand: "---- More ----",
+		ClearLine: "\x1B[42D",
+		StartLine: "------------------------------------------------------------------------------\r\n",
+		EndLine:   "------------------------------------------------------------------------------\r\n",
+		Fields:    []string{"ip", "mac", "expire", "type", "interface", "instance", "vlan"},
+	}
+	switchTemplates["h3"] = Template{
+		ignoreEcho: true, Name: "h3", Pattern: `(.{16})(.{15})(.{11})(.{25})(.{6})(.*)`,
+		LineSperator: "\r\r\n",
+		StartLine:    "Aging Type \r\r\n",
+		Fields:       []string{"ip", "mac", "vlan", "interface", "expire", "type", "instance"},
+	}
 
 }
 
@@ -121,7 +177,14 @@ func SetLogger(g_logger log.Logger) {
 }
 func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(&scriptCollector{})
+	params := r.URL.Query()
+	targetName := params.Get("target")
+	if targetName == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing target parameter!"))
+		return
+	}
+	registry.MustRegister(&scriptCollector{TargetName: targetName})
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
 }
