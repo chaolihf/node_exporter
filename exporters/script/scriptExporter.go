@@ -1,8 +1,8 @@
 package script
 
 import (
-	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/chaolihf/node_exporter/pkg/clients/sshclient"
@@ -35,32 +35,64 @@ func (collector *scriptCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func getRunScriptResult() []prometheus.Metric {
-	var metrics []prometheus.Metric
 	session := sshclient.NewSshSession("134.95.237.121:2222", "nmread", "Siemens#202405", 10)
 	if session == nil {
 		return nil
 	}
-	content, err := session.ExecuteMoreCommand("display arp", "---- More ----", "<TDL-JF-9310-1>")
+	content, err := session.ExecuteMoreCommand("display arp",
+		"---- More ----", "<TDL-JF-9310-1>", "\x1B[42D",
+		"------------------------------------------------------------------------------\r\n",
+		"------------------------------------------------------------------------------\r\n")
 	if err != nil {
 		return nil
 	}
-	rows := strings.Split(content, "\r\n")
-	index := 0
-	for _, row := range rows {
+	// file, _ := os.Create("temp.txt")
+	// file.WriteString(content)
+	// file.Close()
+	tableInfo := ParseTableData(content)
+	metrics := CreateMetrics(tableInfo)
+	session.Close()
+	return metrics
+}
+
+func CreateMetrics(tableInfo [][]string) []prometheus.Metric {
+	var metrics []prometheus.Metric
+	columnNames := []string{"ip", "mac", "expire", "type", "interface", "instance", "vlan"}
+	for _, row := range tableInfo {
 		var tags = make(map[string]string)
-		columns := strings.Split(row, " ")
-		for _, column := range columns {
-			if len(column) > 0 {
-				tags[fmt.Sprintf("col%d", index)] = column
-				index = index + 1
+		for i := 0; i < len(columnNames); i++ {
+			if len(row) > i {
+				tags[columnNames[i]] = strings.Trim(row[i], " ")
+			} else {
+				tags[columnNames[i]] = ""
 			}
 		}
-		scriptMetric := prometheus.NewDesc(fmt.Sprintf("arp_addresss%d", index), "", nil, tags)
+		scriptMetric := prometheus.NewDesc("arp_addresss", "", nil, tags)
 		metric := prometheus.MustNewConstMetric(scriptMetric, prometheus.CounterValue, 1)
 		metrics = append(metrics, metric)
 	}
-	session.Close()
 	return metrics
+}
+func ParseTableData(content string) [][]string {
+	var table [][]string
+	rows := strings.Split(content, "\r\n")
+	regex := regexp.MustCompile(`(.{16})(.{16})(.{10})(.{12})(.{15})(.*)`)
+	var lastIndex = -1
+	for _, row := range rows {
+		row := strings.Trim(row, " ")
+		if len(row) == 0 {
+			continue
+		}
+		matches := regex.FindStringSubmatch(row)
+		if len(matches) > 0 {
+			table = append(table, matches[1:])
+			lastIndex = lastIndex + 1
+		} else {
+			table[lastIndex] = append(table[lastIndex], row)
+
+		}
+	}
+	return table
 }
 
 func init() {
