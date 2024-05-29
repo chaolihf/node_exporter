@@ -42,8 +42,10 @@ func NewSshSession(hostNameAndPort string, userName string, password string, tim
 
 /*
 ExecuteCommand 执行命令，当需要
+huawei' clear line command is "\x1B[42D"
 */
-func (thisSession *SshSession) ExecuteMoreCommand(command string, moreCommand string, prompt string) (string, error) {
+func (thisSession *SshSession) ExecuteMoreCommand(command string, moreCommand string,
+	prompt string, clearLine string, startLine string, endLine string) (string, error) {
 	var result string
 	var err error
 	if thisSession.session != nil {
@@ -79,6 +81,15 @@ func (thisSession *SshSession) ExecuteMoreCommand(command string, moreCommand st
 				result = result + strings.Replace(bufferContent, prompt, "", 1)
 				break
 			}
+		}
+		if len(clearLine) > 0 {
+			result = strings.ReplaceAll(result, clearLine, "")
+		}
+		if len(startLine) > 0 {
+			result = result[strings.Index(result, startLine)+len(startLine):]
+		}
+		if len(endLine) > 0 {
+			result = result[:strings.Index(result, endLine)]
 		}
 	}
 	return result, err
