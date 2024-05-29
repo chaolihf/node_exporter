@@ -26,38 +26,52 @@ func (collector *scriptCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *scriptCollector) Collect(ch chan<- prometheus.Metric) {
-	metrics := getRunScriptResult()
-	if metrics != nil {
-		for _, metric := range metrics {
-			ch <- metric
-		}
+	//metrics := getHuaweiScriptResult()
+	metrics := getH3ScriptResult()
+	for _, metric := range metrics {
+		ch <- metric
 	}
 }
 
-func getRunScriptResult() []prometheus.Metric {
+func getH3ScriptResult() []prometheus.Metric {
+	session := sshclient.NewSshSession("134.95.237.121:2223", "nmread", "Siemens#202405", 10)
+	if session == nil {
+		return nil
+	}
+	defer session.Close()
+	content, _ := session.ExecuteCommand("display arp", "Aging Type \r\r\n")
+	tableInfo := ParseTableData(content, "\r\r\n", `(.{16})(.{15})(.{11})(.{25})(.{6})(.*)`)
+	metrics := CreateMetrics(tableInfo,
+		[]string{"ip", "mac", "vlan", "interface", "expire", "type", "instance"})
+	return metrics
+}
+
+func getHuaweiScriptResult() []prometheus.Metric {
 	session := sshclient.NewSshSession("134.95.237.121:2222", "nmread", "Siemens#202405", 10)
 	if session == nil {
 		return nil
 	}
+	defer session.Close()
 	content, err := session.ExecuteMoreCommand("display arp",
 		"---- More ----", "<TDL-JF-9310-1>", "\x1B[42D",
 		"------------------------------------------------------------------------------\r\n",
-		"------------------------------------------------------------------------------\r\n")
+		"------------------------------------------------------------------------------\r\n",
+		false)
 	if err != nil {
 		return nil
 	}
 	// file, _ := os.Create("temp.txt")
 	// file.WriteString(content)
 	// file.Close()
-	tableInfo := ParseTableData(content)
-	metrics := CreateMetrics(tableInfo)
-	session.Close()
+	tableInfo := ParseTableData(content, "\r\n", `(.{16})(.{16})(.{10})(.{12})(.{15})(.*)`)
+	metrics := CreateMetrics(tableInfo,
+		[]string{"ip", "mac", "expire", "type", "interface", "instance", "vlan"})
+
 	return metrics
 }
 
-func CreateMetrics(tableInfo [][]string) []prometheus.Metric {
+func CreateMetrics(tableInfo [][]string, columnNames []string) []prometheus.Metric {
 	var metrics []prometheus.Metric
-	columnNames := []string{"ip", "mac", "expire", "type", "interface", "instance", "vlan"}
 	for _, row := range tableInfo {
 		var tags = make(map[string]string)
 		for i := 0; i < len(columnNames); i++ {
@@ -73,10 +87,10 @@ func CreateMetrics(tableInfo [][]string) []prometheus.Metric {
 	}
 	return metrics
 }
-func ParseTableData(content string) [][]string {
+func ParseTableData(content string, lineSperator string, rowPattern string) [][]string {
 	var table [][]string
-	rows := strings.Split(content, "\r\n")
-	regex := regexp.MustCompile(`(.{16})(.{16})(.{10})(.{12})(.{15})(.*)`)
+	rows := strings.Split(content, lineSperator)
+	regex := regexp.MustCompile(rowPattern)
 	var lastIndex = -1
 	for _, row := range rows {
 		row := strings.Trim(row, " ")
