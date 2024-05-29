@@ -14,6 +14,7 @@
 package node_exporter_main
 
 import (
+	"crypto/tls"
 	"fmt"
 	stdlog "log"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	"os/user"
 	"runtime"
 	"sort"
+	"time"
 
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
@@ -29,6 +31,7 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
 	hadoop "github.com/chaolihf/node_exporter/exporters"
+	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -143,20 +146,44 @@ func (h *handler) innerHandler(filters ...string) (http.Handler, error) {
 	return handler, nil
 }
 
+func initReadTimeConfig() (int, error) {
+	filePath := "config.json"
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		stdlog.Printf("读取文件出错: %s, %v\n", filePath, err)
+		return 10, err
+	} else {
+		jsonConfigInfos, err := jjson.NewJsonObject([]byte(content))
+		if err != nil {
+			stdlog.Printf("JSON文件格式出错:", err)
+			return 10, err
+		} else {
+			readTimeout := jsonConfigInfos.GetInt("readTimeout")
+			if readTimeout != 0 {
+				return readTimeout, nil
+			} else {
+				return 10, nil
+			}
+		}
+	}
+}
+
 func Main() {
 	var (
+		//修改默认路径
 		metricsPath = kingpin.Flag(
 			"web.telemetry-path",
 			"Path under which to expose metrics.",
-		).Default("/metrics").String()
+		).Default("/OneAgentMetrics").String()
 		disableExporterMetrics = kingpin.Flag(
 			"web.disable-exporter-metrics",
 			"Exclude metrics about the exporter itself (promhttp_*, process_*, go_*).",
 		).Bool()
+		//修改默认并发请求数
 		maxRequests = kingpin.Flag(
 			"web.max-requests",
 			"Maximum number of parallel scrape requests. Use 0 to disable.",
-		).Default("40").Int()
+		).Default("3").Int()
 		disableDefaultCollectors = kingpin.Flag(
 			"collector.disable-defaults",
 			"Set all collectors to disabled by default.",
@@ -188,23 +215,24 @@ func Main() {
 
 	http.Handle(*metricsPath, newHandler(!*disableExporterMetrics, *maxRequests, logger))
 	if *metricsPath != "/" {
-		landingConfig := web.LandingConfig{
-			Name:        "Node Exporter",
-			Description: "Prometheus Node Exporter",
-			Version:     version.Info(),
-			Links: []web.LandingLinks{
-				{
-					Address: *metricsPath,
-					Text:    "Metrics",
-				},
-			},
-		}
-		landingPage, err := web.NewLandingPage(landingConfig)
-		if err != nil {
-			level.Error(logger).Log("err", err)
-			os.Exit(1)
-		}
-		http.Handle("/", landingPage)
+		//注释以下代码，不提供等待页面
+		// landingConfig := web.LandingConfig{
+		// 	Name:        "Node Exporter",
+		// 	Description: "Prometheus Node Exporter",
+		// 	Version:     version.Info(),
+		// 	Links: []web.LandingLinks{
+		// 		{
+		// 			Address: *metricsPath,
+		// 			Text:    "Metrics",
+		// 		},
+		// 	},
+		// }
+		// landingPage, err := web.NewLandingPage(landingConfig)
+		// if err != nil {
+		// 	level.Error(logger).Log("err", err)
+		// 	os.Exit(1)
+		// }
+		// http.Handle("/", landingPage)
 	}
 	http.HandleFunc("/hadoopMetrics", func(w http.ResponseWriter, r *http.Request) {
 		hadoop.SetLogger(logger)
@@ -213,7 +241,40 @@ func Main() {
 
 	hadoop.SetLogger(logger)
 
-	server := &http.Server{}
+	//增加读取超时设置，防范慢攻击
+	readTimeout, err := initReadTimeConfig()
+	if err != nil {
+		level.Info(logger).Log("msg", "Reading readTimeoutConfig", err)
+	}
+	tlsconf := &tls.Config{
+		InsecureSkipVerify:       true,
+		MaxVersion:               tls.VersionTLS13,
+		MinVersion:               tls.VersionTLS12,
+		PreferServerCipherSuites: true,
+	}
+	//维护到配置文件
+	tlsconf.CipherSuites = []uint16{
+		tls.TLS_AES_128_GCM_SHA256,
+		tls.TLS_CHACHA20_POLY1305_SHA256,
+		tls.TLS_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+	}
+
+	server := &http.Server{
+		ReadTimeout: time.Duration(readTimeout) * time.Second,
+		TLSConfig:   tlsconf,
+	}
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("err", err)
 		os.Exit(1)
