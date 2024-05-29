@@ -152,3 +152,7 @@ func runCommandAndTests(cmd *exec.Cmd, address string, fn func(pid int) error) e
 	}
 	return err
 }
+
+func TestNodeExporter(t *testing.T) {
+	Main()
+}

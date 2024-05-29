@@ -155,7 +155,7 @@ func initReadTimeConfig() (int, error) {
 	} else {
 		jsonConfigInfos, err := jjson.NewJsonObject([]byte(content))
 		if err != nil {
-			stdlog.Printf("JSON文件格式出错:", err)
+			stdlog.Printf("JSON文件格式出错:%s", err)
 			return 10, err
 		} else {
 			readTimeout := jsonConfigInfos.GetInt("readTimeout")
@@ -199,7 +199,8 @@ func Main() {
 	kingpin.Version(version.Print("node_exporter"))
 	kingpin.CommandLine.UsageWriter(os.Stdout)
 	kingpin.HelpFlag.Short('h')
-	kingpin.Parse()
+	commands, err := kingpin.CommandLine.Parse([]string{})
+	kingpin.MustParse(commands, err)
 	logger := promlog.New(promlogConfig)
 
 	if *disableDefaultCollectors {
@@ -234,10 +235,13 @@ func Main() {
 		// }
 		// http.Handle("/", landingPage)
 	}
-	http.HandleFunc("/hadoopMetrics", func(w http.ResponseWriter, r *http.Request) {
-		hadoop.SetLogger(logger)
-		hadoop.HadoopHandler(w, r)
-	})
+	_, err = os.Stat("hadoopConfig.json")
+	if err == nil {
+		http.HandleFunc("/hadoopMetrics", func(w http.ResponseWriter, r *http.Request) {
+			hadoop.SetLogger(logger)
+			hadoop.HadoopHandler(w, r)
+		})
+	}
 
 	hadoop.SetLogger(logger)
 
