@@ -10,6 +10,8 @@ import (
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/transform"
 )
 
 type FileCheckCollector struct {
@@ -78,9 +80,11 @@ func (collector *FileCheckCollector) Update(ch chan<- prometheus.Metric) error {
 					//判断指定路径下的文件是否存在，若文件存在
 					exists, info := fileExists(fileCheckPath)
 					if exists {
+						fileEncoding := fileCheckPathJson.GetString("encoding")
 						content, err := os.ReadFile(fileCheckPath)
 						if err != nil {
 							logger.Log("读取文件出错:"+filePath, err)
+							//适用于采集器用户未具备指定文件读取权限的情况
 							ch <- createFileCheckMetric("false", nil, DT_All, info, objectId, fileCheckPath)
 						} else {
 							//判断该路径文件是否存在于map中
@@ -91,12 +95,27 @@ func (collector *FileCheckCollector) Update(ch chan<- prometheus.Metric) error {
 									ch <- createFileCheckMetric("success", nil, DT_Add, info, objectId, fileCheckPath)
 								} else {
 									lastFileInfoMap[fileCheckPath] = content
-									//获取文件指标metric
-									ch <- createFileCheckMetric("success", content, DT_Changed, info, objectId, fileCheckPath)
+									if fileEncoding != "" {
+										utf8Transformer := charmap.ISO8859_1.NewDecoder()
+										content, _, _ := transform.Bytes(utf8Transformer, content)
+										//获取文件指标metric
+										ch <- createFileCheckMetric("success", content, DT_Changed, info, objectId, fileCheckPath)
+									} else {
+										//获取文件指标metric
+										ch <- createFileCheckMetric("success", content, DT_Changed, info, objectId, fileCheckPath)
+									}
 								}
 							} else {
 								lastFileInfoMap[fileCheckPath] = content
-								ch <- createFileCheckMetric("success", content, DT_All, info, objectId, fileCheckPath)
+								if fileEncoding != "" {
+									utf8Transformer := charmap.ISO8859_1.NewDecoder()
+									content, _, _ := transform.Bytes(utf8Transformer, content)
+									//获取文件指标metric
+									ch <- createFileCheckMetric("success", content, DT_All, info, objectId, fileCheckPath)
+								} else {
+									//获取文件指标metric
+									ch <- createFileCheckMetric("success", content, DT_All, info, objectId, fileCheckPath)
+								}
 							}
 						}
 					} else {
