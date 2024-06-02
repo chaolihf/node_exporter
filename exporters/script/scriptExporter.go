@@ -62,9 +62,9 @@ func (collector *scriptCollector) Collect(ch chan<- prometheus.Metric) {
 			var metrics []prometheus.Metric
 			switch shellInfo.Mode {
 			case "h3":
-				metrics = getScriptResult(shellInfo, switchTemplates[shellInfo.Mode], true)
+				metrics = getScriptResult(shellInfo, switchTemplates[shellInfo.Mode])
 			case "huawei":
-				metrics = getScriptResult(shellInfo, switchTemplates[shellInfo.Mode], false)
+				metrics = getScriptResult(shellInfo, switchTemplates[shellInfo.Mode])
 			}
 			for _, metric := range metrics {
 				ch <- metric
@@ -75,30 +75,34 @@ func (collector *scriptCollector) Collect(ch chan<- prometheus.Metric) {
 
 }
 
-func getScriptResult(shellInfo ShellConfig, template Template, ignoreEcho bool) []prometheus.Metric {
-	session := sshclient.NewSshSession(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
+func getScriptResult(shellInfo ShellConfig, template Template) []prometheus.Metric {
+	session := sshclient.NewSSHSession(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
 	if session == nil {
 		return nil
 	}
-	defer session.Close()
+	defer session.CloseSession()
 	var content string
 	var err error
-	if !ignoreEcho {
-		content, err = session.ExecuteMoreCommand(shellInfo.Command,
-			template.MoreCommand, shellInfo.Prompt, template.ClearLine,
-			template.StartLine, template.EndLine, false)
+	if template.Name == "huawei" {
+		content, err = session.ExecuteShellCommand(shellInfo.Command,
+			template.MoreCommand, shellInfo.Prompt, template.ClearLine)
 	} else {
-		content, err = session.ExecuteCommand(shellInfo.Command, template.StartLine)
+		content, err = session.ExecuteSingleCommand(shellInfo.Command, template.StartLine)
 	}
 	if err != nil {
 		return nil
 	}
-	// file, _ := os.Create("temp.txt")
-	// file.WriteString(content)
-	// file.Close()
+	file, _ := os.Create("temp.txt")
+	file.WriteString(content)
+	file.Close()
 	tableInfo := ParseTableData(content, template.LineSperator, template.Pattern)
 	metrics := CreateMetrics(tableInfo, template.Fields)
-
+	session.SendShellCommand("display ospf peer brief")
+	content = session.GetShellCommandResult(
+		shellInfo.Prompt, template.MoreCommand, template.ClearLine)
+	file, _ = os.Create("temp.txt")
+	file.WriteString(content)
+	file.Close()
 	return metrics
 }
 
