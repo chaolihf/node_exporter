@@ -1,0 +1,44 @@
+display ospf peer brief
+
+	 OSPF Process 1 with Router ID 134.95.131.5
+		  Peer Statistic Information
+ ----------------------------------------------------------------------------
+ Area Id          Interface                        Neighbor id      State    
+ 0.0.0.0          Vlanif571                        134.95.128.3     Full        
+ 0.0.0.0          Vlanif569                        134.95.131.6     Full        
+ 0.0.0.0          Vlanif565                        134.64.11.157    Full        
+ 0.0.0.0          Vlanif567                        134.64.11.218    Full        
+ ----------------------------------------------------------------------------
+ Total Peer(s):     4
+
+	 OSPF Process 2 with Router ID 134.95.129.30
+		  Peer Statistic Information
+ ----------------------------------------------------------------------------
+ Area Id          Interface                        Neighbor id      State    
+ 0.0.0.0          Vlanif556                        134.95.128.19    Full        
+ 0.0.0.0          Vlanif550                        134.95.128.16    Full        
+ 0.0.0.0          Vlanif552                        134.95.128.17    Full        
+ 0.0.0.0          Vlanif554                        134.95.128.18    Full        
+ 0.0.0.0          Vlanif573                        134.95.128.3     Full        
+ 0.0.0.0          Vlanif570                        134.95.130.30    Full        
+ 0.0.0.0          Vlanif576                        134.95.129.130   Full        
+ 0.0.0.0          Vlanif577                        134.95.129.134   Full        
+ 0.0.0.0          Vlanif588                        134.95.130.138   Full        
+ 0.0.0.0          Vlanif589                        134.95.132.195   Full        
+ 0.0.0.0          Vlanif592                        134.95.128.10    Full        
+ 0.0.0.0          Vlanif593                        134.95.128.11    Full        
+ 0.0.0.0          Vlanif596                        134.95.133.194   Full        
+ 0.0.0.0          Vlanif597                        134.95.128.13    Full        
+ 0.0.0.0          Vlanif600                        134.95.130.30    Full        
+ ----------------------------------------------------------------------------
+ Total Peer(s):    15
+
+	 OSPF Process 3 with Router ID 134.95.129.34
+		  Peer Statistic Information
+ ----------------------------------------------------------------------------
+ Area Id          Interface                        Neighbor id      State    
+ 0.0.0.0          Vlanif580                        134.95.128.3     Full        
+ 0.0.0.0          Vlanif582                        134.95.130.34    Full        
+ 0.0.0.0          Vlanif583                        134.95.130.34    Full        
+ ----------------------------------------------------------------------------
+ Total Peer(s):     3
