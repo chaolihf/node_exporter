@@ -44,5 +44,5 @@
                "id":"dhaskdjshajk"}
         ]
     },
-    "module":["filebeat","node_exporter","hadoop_exporter","script_exporter"]
+    "module":["filebeat","node_exporter","hadoop_exporter","switch_exporter"]
 }
