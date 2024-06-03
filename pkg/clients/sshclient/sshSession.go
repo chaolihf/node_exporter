@@ -132,7 +132,7 @@ func (thisSesion *SSHSession) GetShellCommandResult(prompt string,
 	return result
 }
 
-func (thisSession *SSHSession) ExecuteSingleCommand(command string, startLine string) (string, error) {
+func (thisSession *SSHSession) ExecuteSingleCommand(command string) (string, error) {
 	var output []byte
 	var err error
 	if thisSession.session != nil {
