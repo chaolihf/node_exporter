@@ -1,18 +1,14 @@
 {
     "switchs":[
         {
-            "name": "134.95.128.1",
-            "host":"134.95.237.121:2222",
-            "user":"nmread",
-            "password":"Siemens#202405",
+            "name": "",
+            "host":"",
+            "user":"",
+            "password":"",
             "mode":"huawei",
-            "prompt":"<TDL-JF-9310-1>",
+            "prompt":"",
             "shell":"1",
             "steps":[
-                {
-                    "command":"display arp",
-                    "scriptFunction":"getArpInfo"
-                },
                 {
                     "command":"display arp",
                     "scriptFunction":"getArpInfo"
@@ -20,10 +16,10 @@
             ]
         },
         {
-            "name": "134.95.128.12",
-            "host":"134.95.237.121:2223",
-            "user":"nmread",
-            "password":"Siemens#202405",
+            "name": "",
+            "host":"",
+            "user":"",
+            "password":"",
             "mode":"h3",
             "command":"display arp"
 
