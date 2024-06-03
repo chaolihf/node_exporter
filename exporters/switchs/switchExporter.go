@@ -173,13 +173,6 @@ func init() {
 		}
 	}
 
-	// switchTemplates["h3"] = Template{
-	// 	ignoreEcho: true, Name: "h3", Pattern: `(.{16})(.{15})(.{11})(.{25})(.{6})(.*)`,
-	// 	LineSperator: "\r\r\n",
-	// 	StartLine:    "Aging Type \r\r\n",
-	// 	Fields:       []string{"ip", "mac", "vlan", "interface", "expire", "type", "instance"},
-	// }
-
 }
 
 func SetLogger(g_logger log.Logger) {

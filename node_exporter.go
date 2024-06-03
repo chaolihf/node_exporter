@@ -271,6 +271,7 @@ func Main() {
 		http.HandleFunc("/switchMetrics", func(w http.ResponseWriter, r *http.Request) {
 			switchs.RequestHandler(w, r)
 		})
+		switchs.SetLogger(logger)
 	}
 
 	tlsconf := &tls.Config{

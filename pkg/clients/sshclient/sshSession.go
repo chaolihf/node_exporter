@@ -150,7 +150,9 @@ func (thisSession *SSHSession) ExecuteSingleCommand(command string) (string, err
 
 func (thisSession *SSHSession) CloseSession() {
 	if thisSession.session != nil {
-		thisSession.stdinPipe.Close()
+		if thisSession.stdinPipe != nil {
+			thisSession.stdinPipe.Close()
+		}
 		thisSession.session.Close()
 		thisSession.session = nil
 		thisSession.stdoutPipe = nil

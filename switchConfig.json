@@ -21,7 +21,12 @@
             "user":"",
             "password":"",
             "mode":"h3",
-            "command":"display arp"
+            "steps":[
+                {
+                    "command":"display arp",
+                    "scriptFunction":"getArpInfo"
+                }
+            ]
 
         }
     ]
