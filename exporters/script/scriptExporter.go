@@ -87,7 +87,7 @@ func getScriptResult(shellInfo ShellConfig, template Template) []prometheus.Metr
 		content, err = session.ExecuteShellCommand(shellInfo.Command,
 			template.MoreCommand, shellInfo.Prompt, template.ClearLine)
 	} else {
-		content, err = session.ExecuteSingleCommand(shellInfo.Command, template.StartLine)
+		content, err = session.ExecuteSingleCommand(shellInfo.Command)
 	}
 	if err != nil {
 		return nil

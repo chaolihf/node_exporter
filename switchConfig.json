@@ -1,13 +1,19 @@
 {
-    "scripts":[
+    "switchs":[
         {
             "name": "134.95.128.1",
             "host":"134.95.237.121:2222",
             "user":"nmread",
             "password":"Siemens#202405",
             "mode":"huawei",
-            "command":"display arp",
-            "prompt":"<TDL-JF-9310-1>"
+            "prompt":"<TDL-JF-9310-1>",
+            "shell":"1",
+            "steps":[
+                {
+                    "command":"display arp",
+                    "scriptFunction":"getArpInfo"
+                }
+            ]
         },
         {
             "name": "134.95.128.12",

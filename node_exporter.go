@@ -32,7 +32,7 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
 	"github.com/chaolihf/node_exporter/exporters/hadoop"
-	"github.com/chaolihf/node_exporter/exporters/script"
+	"github.com/chaolihf/node_exporter/exporters/switchs"
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -60,7 +60,7 @@ type handler struct {
 var (
 	readTimeout          int  = 10
 	enableHadoopExporter bool = false
-	enableScriptExporter bool = false
+	enableSwitchExporter bool = false
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -171,8 +171,8 @@ func initReadConfig() error {
 			for _, jsonModuleInfo := range jsonModuleInfos {
 				if jsonModuleInfo.GetStringValue() == "hadoop_exporter" {
 					enableHadoopExporter = true
-				} else if jsonModuleInfo.GetStringValue() == "script_exporter" {
-					enableScriptExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "switch_exporter" {
+					enableSwitchExporter = true
 				}
 			}
 		}
@@ -267,9 +267,9 @@ func Main() {
 		}
 		hadoop.SetLogger(logger)
 	}
-	if enableScriptExporter {
-		http.HandleFunc("/scriptMetrics", func(w http.ResponseWriter, r *http.Request) {
-			script.RequestHandler(w, r)
+	if enableSwitchExporter {
+		http.HandleFunc("/switchMetrics", func(w http.ResponseWriter, r *http.Request) {
+			switchs.RequestHandler(w, r)
 		})
 	}
 
