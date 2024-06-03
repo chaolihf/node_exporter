@@ -1,8 +1,6 @@
 package javascript
 
 import (
-	"com.chinatelecom.oneops.client/pkg/plugins/console"
-	"com.chinatelecom.oneops.client/pkg/plugins/proxy"
 	"github.com/dop251/goja"
 	"go.uber.org/zap"
 )
@@ -11,10 +9,12 @@ type JSRunner struct {
 	runtime *goja.Runtime
 }
 
+type ExportsMock struct {
+}
+
 func NewJSRunner(logger *zap.Logger) *JSRunner {
 	vm := goja.New()
-	vm.Set("console", console.New(logger))
-	vm.Set("_func_predef_proxy", proxy.New(logger))
+	vm.Set("exports", ExportsMock{})
 	return &JSRunner{
 		runtime: vm,
 	}
