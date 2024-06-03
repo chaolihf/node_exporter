@@ -76,6 +76,7 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 	runner := javascript.NewJSRunner()
 	_, err = runner.RunCode(scriptCode)
 	if err != nil {
+		level.Error(logger).Log("err", "init script code "+err.Error())
 		return nil
 	}
 	moreCommand, clearLine, err := getShellConfig(runner)
