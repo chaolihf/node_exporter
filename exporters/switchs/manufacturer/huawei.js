@@ -84,7 +84,7 @@ function getMacInfo(data){
 }
 
 function getVrrpInfo(data){
-    var line="------------------------------------------------------------------------------\r\n";
+    var line="----------------------------------------------------------------\r\n";
     data=getTableData(data,line,"")
     var tableData=parseTableData(data,"\r\n","(.{6})(.{13})(.{25})(.{9})(.*)")
     return ["vrrp_brief",["vrid", "state",  "interface", "type","ip"],tableData];
@@ -96,7 +96,7 @@ function getPowerInfo(data){
     if (index !== -1) {
         data = data.slice(index);
     }
-    var line="------------------------------------------------------------------------------\r\n";
+    var line="--------------------------------------------------------------------------\r\n";
     data=getTableData(data,line,"")
     var tableData=parseTableData(data,"\r\n","(.{9})(.{8})(.{7})(.{11})(.{13})(.{13})(.*)")
     return ["power",["powerid", "online",  "mode", "state","current","voltage","realpwr"],tableData];
@@ -106,3 +106,4 @@ exports.getArpInfo=getArpInfo;
 exports.getOspfInfo=getOspfInfo;
 exports.getMacInfo=getMacInfo;
 exports.getVrrpInfo=getVrrpInfo;
+exports.getPowerInfo=getPowerInfo;
