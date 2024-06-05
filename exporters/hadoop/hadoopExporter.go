@@ -42,7 +42,7 @@ type MetricType struct {
 
 type TargetServer struct {
 	Name   string `json:"name"`
-	Url    string `json:"url"`
+	URL    string `json:"url"`
 	Module string `json:"module"`
 }
 
@@ -55,7 +55,7 @@ var handlerMap map[string]beanHandler
 var exporterInfo ExporterConfig
 
 type hadoopCollector struct {
-	remoteUrl    string
+	remoteURL    string
 	modulePrefix string
 	showAll      bool
 }
@@ -67,20 +67,24 @@ func (collector *hadoopCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *hadoopCollector) Collect(ch chan<- prometheus.Metric) {
-	metrics := getJmxInfo(collector.remoteUrl, collector.modulePrefix, collector.showAll)
+	metrics := getJmxInfo(collector.remoteURL, collector.modulePrefix, collector.showAll)
 	for _, metric := range metrics {
 		ch <- metric
 	}
 }
 
 func getJmxInfo(url string, modulePrefix string, isShowAll bool) []prometheus.Metric {
-	var metrics []prometheus.Metric
 	level.Info(logger).Log("info", fmt.Sprintf("get url %s", url))
 	resp, err := client.R().EnableTrace().Get(url)
 	if err != nil {
 		level.Error(logger).Log("err", err.Error())
 	}
-	jsonInfo, _ := jjson.FromBytes(resp.Body())
+	return ParseContent(resp.Body(), modulePrefix, isShowAll)
+}
+
+func ParseContent(content []byte, modulePrefix string, isShowAll bool) []prometheus.Metric {
+	var metrics []prometheus.Metric
+	jsonInfo, _ := jjson.FromBytes(content)
 	beanInfos := jsonInfo.GetJsonArray("beans")
 	var keySet = make(map[string][]string)
 	for _, beanInfo := range beanInfos {
@@ -160,9 +164,9 @@ func init() {
 	registerNameHandler("Hadoop:service=HBase,name=RegionServer,sub=TableLatencies", handlerRegionServerRegions)
 }
 
-func SetLogger(g_logger log.Logger) {
+func SetLogger(globalLogger log.Logger) {
 	if !isHadoopInited {
-		logger = g_logger
+		logger = globalLogger
 		isHadoopInited = true
 	}
 }
@@ -177,16 +181,16 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("missing target parameter!"))
 		return
 	}
-	var targetUrl string = ""
-	var defaultModule string = ""
+	var targetURL = ""
+	var defaultModule = ""
 	for _, targetServer := range exporterInfo.TargetServers {
 		if targetServer.Name == targetName {
-			targetUrl = targetServer.Url
+			targetURL = targetServer.URL
 			defaultModule = targetServer.Module
 			break
 		}
 	}
-	if targetUrl == "" {
+	if targetURL == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("can't find target name on server " + targetName))
 		return
@@ -200,11 +204,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		module = defaultModule
 	}
 	showAllParam := params.Get("showall")
-	var isShowAll bool = false
+	var isShowAll = false
 	if showAllParam == "1" {
 		isShowAll = true
 	}
-	registry.MustRegister(&hadoopCollector{remoteUrl: targetUrl, modulePrefix: module, showAll: isShowAll})
+	registry.MustRegister(&hadoopCollector{remoteURL: targetURL, modulePrefix: module, showAll: isShowAll})
 
 	// probeSuccessGauge := prometheus.NewGauge(prometheus.GaugeOpts{
 	// 	Name: "probe_success",
