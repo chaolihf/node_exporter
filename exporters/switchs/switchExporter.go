@@ -10,10 +10,12 @@ import (
 	"github.com/chaolihf/node_exporter/pkg/clients/sshclient"
 	"github.com/chaolihf/node_exporter/pkg/javascript"
 	"github.com/chaolihf/node_exporter/pkg/utils"
+	"github.com/chaolihf/udpgo/lang"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 )
 
 var logger log.Logger
@@ -44,6 +46,7 @@ type ExporterConfig struct {
 
 var exporterInfo ExporterConfig
 var isScriptInited = false
+var switchLogger *zap.Logger
 
 func (collector *switchCollector) Describe(ch chan<- *prometheus.Desc) {
 
@@ -94,10 +97,12 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 		if err != nil {
 			return nil
 		}
+		switchLogger.Info(content)
 		metrics = append(metrics, runScript(runner, shellInfo.Steps[0].ScriptFunction, content)...)
 		for _, stepInfo := range shellInfo.Steps[1:] {
 			session.SendShellCommand(stepInfo.Command)
 			content = session.GetShellCommandResult(shellInfo.Prompt, moreCommand, clearLine)
+			switchLogger.Info(content)
 			metrics = append(metrics, runScript(runner, stepInfo.ScriptFunction, content)...)
 		}
 	} else {
@@ -106,6 +111,7 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 			if err != nil {
 				return nil
 			}
+			switchLogger.Info(content)
 			metrics = append(metrics, runScript(runner, stepInfo.ScriptFunction, content)...)
 		}
 	}
@@ -163,6 +169,7 @@ func CreateMetrics(metricName string, tableInfo [][]string, columnNames []string
 }
 
 func init() {
+	switchLogger = lang.InitProductLogger("logs/switchs.log", 300, 3, 10)
 	filePath := "switchConfig.json"
 	content, err := utils.ReadDataFromFile(filePath)
 	if err != nil {
