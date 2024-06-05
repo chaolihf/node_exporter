@@ -1,0 +1,12 @@
+display vrrp brief 
+Total:8     Master:8     Backup:0     Non-active:0      
+VRID  State        Interface                Type     Virtual IP     
+----------------------------------------------------------------
+1     Master       Vlanif575                Normal   134.95.132.1   
+1     Master       Vlanif582                Normal   134.95.140.1   
+1     Master       Vlanif583                Normal   134.95.140.65  
+1     Master       Vlanif600                Normal   134.95.133.1   
+1     Master       Vlanif601                Normal   134.95.134.1   
+1     Master       Vlanif602                Normal   134.95.134.129 
+1     Master       Vlanif603                Normal   134.95.135.1   
+1     Master       Vlanif604                Normal   134.95.135.129 

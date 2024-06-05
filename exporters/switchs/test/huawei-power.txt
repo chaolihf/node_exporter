@@ -1,0 +1,8 @@
+display power
+--------------------------------------------------------------------------
+ PowerID  Online  Mode   State      Current(A)   Voltage(V)   RealPwr(W)  
+--------------------------------------------------------------------------
+ PWR1     Present AC     Supply     6.65         53.57        356.24
+ PWR2     Present AC     Supply     6.01         53.60        322.14
+ PWR3     Present AC     Supply     5.20         53.55        278.46
+ PWR4     Present AC     Supply     6.16         53.54        329.81

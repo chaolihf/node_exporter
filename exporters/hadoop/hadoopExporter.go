@@ -19,10 +19,16 @@ import (
 )
 
 type ExporterConfig struct {
-	ListenAddress string         `json:"listen"`
-	Codes         []CodeMap      `json:"codeMaps"`
-	Metrics       []MetricType   `json:"metrics"`
-	TargetServers []TargetServer `json:"servers"`
+	ListenAddress    string              `json:"listen"`
+	Codes            []CodeMap           `json:"codeMaps"`
+	Metrics          []MetricType        `json:"metrics"`
+	TargetServers    []TargetServer      `json:"servers"`
+	IgnoreConditions [][]IgnoreCondition `json:"IgnoreConditions"`
+}
+
+type IgnoreCondition struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type CodeMap struct {
@@ -80,6 +86,9 @@ func getJmxInfo(url string, modulePrefix string, isShowAll bool) []prometheus.Me
 	for _, beanInfo := range beanInfos {
 		beanName := beanInfo.GetString("name")
 		if strings.HasPrefix(beanName, "Hadoop:") {
+			if !isValidBean(beanInfo) {
+				continue
+			}
 			handler := handlerMap[beanName]
 			if handler == nil {
 				handler = getBeanMetrics
@@ -88,6 +97,22 @@ func getJmxInfo(url string, modulePrefix string, isShowAll bool) []prometheus.Me
 		}
 	}
 	return metrics
+}
+
+func isValidBean(beanInfo *jjson.JsonObject) bool {
+	for _, IgnoreCondition := range exporterInfo.IgnoreConditions {
+		isMatch := true
+		for _, ignoreItem := range IgnoreCondition {
+			if beanInfo.GetString(ignoreItem.Key) != ignoreItem.Value {
+				isMatch = false
+				break
+			}
+		}
+		if isMatch {
+			return false
+		}
+	}
+	return true
 }
 
 // @title
@@ -338,7 +363,7 @@ func getNameLabelInfo(beanInfo *jjson.JsonObject, tags map[string]string, module
 			}
 		case "modelerType":
 			{
-				//tags["modelerTypee"] = beanInfo.GetString("modelerType")
+				//tags["modelerType"] = beanInfo.GetString("modelerType")
 			}
 		default:
 			{
