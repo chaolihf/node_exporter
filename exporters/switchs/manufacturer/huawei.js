@@ -72,5 +72,37 @@ function getOspfInfo(data){
     return ["ospf_neighbor",["area", "interface", "neighbor", "state","route"],results];
 }
 
+function getMacInfo(data){
+    let index = data.indexOf("Learned-From");
+    if (index !== -1) {
+        data = data.slice(index);
+    }
+    var line="------------------------------------------------------------------------------\r\n";
+    data=getTableData(data,line,line)
+    var tableData=parseTableData(data,"\r\n","(.{15})(.{34})(.{20})(.*)")
+    return ["mac_addresss",["mac", "vlan",  "interface", "type"],tableData];
+}
+
+function getVrrpInfo(data){
+    var line="------------------------------------------------------------------------------\r\n";
+    data=getTableData(data,line,"")
+    var tableData=parseTableData(data,"\r\n","(.{6})(.{13})(.{25})(.{9})(.*)")
+    return ["vrrp_brief",["vrid", "state",  "interface", "type","ip"],tableData];
+}
+
+
+function getPowerInfo(data){
+    let index = data.indexOf("RealPwr");
+    if (index !== -1) {
+        data = data.slice(index);
+    }
+    var line="------------------------------------------------------------------------------\r\n";
+    data=getTableData(data,line,"")
+    var tableData=parseTableData(data,"\r\n","(.{9})(.{8})(.{7})(.{11})(.{13})(.{13})(.*)")
+    return ["power",["powerid", "online",  "mode", "state","current","voltage","realpwr"],tableData];
+}
+
 exports.getArpInfo=getArpInfo;
 exports.getOspfInfo=getOspfInfo;
+exports.getMacInfo=getMacInfo;
+exports.getVrrpInfo=getVrrpInfo;

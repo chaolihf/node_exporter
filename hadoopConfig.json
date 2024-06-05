@@ -5,6 +5,18 @@
             "value":1   
         }
     ],
+    "IgnoreConditions":[
+            [
+                {
+                    "key": "name",
+                    "value":"Hadoop:service=NameNode,name=FSNamesystem"
+                },
+                {
+                    "key": "modelerType",
+                    "value":"FSNamesystem"
+                }
+            ]
+    ],
     "metrics": [
         {
             "name": "Hadoop_NameNode_NN_FilesTotal"
