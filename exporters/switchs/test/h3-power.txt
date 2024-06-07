@@ -1,0 +1,6 @@
+display power
+ Slot 1:
+ Input Power: 88(W)
+ PowerID State         Mode   Current(A)  Voltage(V)  Power(W)  FanDirection
+ 1       Normal        HVDC      3.82       12.01        45     PortToPower 
+ 2       Normal        HVDC      3.62       12.03        43     PortToPower 

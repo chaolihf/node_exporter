@@ -53,24 +53,6 @@ function parseTableData(content, lineSeparator, rowPattern) {
     return table;
 }
 
-function getOspfInfo(data){
-    const regex = /[\s\S]*?Router ID ([\s\S]*?)\r\n([\s\S]*?)Total Peer.*?\r\n/g;
-    const results = [];
-    let match;
-    var line=" ----------------------------------------------------------------------------\r\n";
-    while ((match = regex.exec(data)) !== null) {
-        const ipAddress = match[1];
-        const peerDetails = getTableData(match[2],"State    \r\n",line);
-        var tableData=parseTableData(peerDetails,"\r\n","(.{17})(.{33})(.{17})(.*)")
-        for (let i = 0; i < tableData.length; i++) {
-            var addRouteArray=[]
-            addRouteArray.push(...tableData[i]);
-            addRouteArray.push(ipAddress);
-            results.push(addRouteArray);
-        }
-    }
-    return ["ospf_neighbor",["area", "interface", "neighbor", "state","route"],results];
-}
 
 function getMacInfo(data){
     let index = data.indexOf("Learned-From");
@@ -80,14 +62,36 @@ function getMacInfo(data){
     var line="------------------------------------------------------------------------------\r\n";
     data=getTableData(data,line,line)
     var tableData=parseTableData(data,"\r\n","(.{15})(.{34})(.{20})(.*)")
-    return ["mac_addresss",["mac", "vlan",  "interface", "type"],tableData];
+    return ["mac_addresss",["mac", "vlan",  "interface", "type","aging"],tableData];
 }
+
+function getOspfInfo(data){
+    const regex = /[\s\S]*?OSPF Process (\d+).*Router ID ([\s\S]*?)\r\n([\s\S]*?)Total Peer.*?\r\n/g;
+    const results = [];
+    let match;
+    var line=" ----------------------------------------------------------------------------\r\n";
+    while ((match = regex.exec(data)) !== null) {
+        const processId=match[1];
+        const ipAddress = match[2];
+        const peerDetails = getTableData(match[3],"State    \r\n",line);
+        var tableData=parseTableData(peerDetails,"\r\n","(.{17})(.{33})(.{17})(.*)")
+        for (let i = 0; i < tableData.length; i++) {
+            var addRouteArray=[]
+            addRouteArray.push(...tableData[i]);
+            addRouteArray.push(processId);
+            addRouteArray.push(ipAddress);
+            results.push(addRouteArray);
+        }
+    }
+    return ["ospf_neighbor",["area", "interface", "neighbor", "state","process","route","forward","priority" ,"deadtime"],results];
+}
+
 
 function getVrrpInfo(data){
     var line="----------------------------------------------------------------\r\n";
     data=getTableData(data,line,"")
     var tableData=parseTableData(data,"\r\n","(.{6})(.{13})(.{25})(.{9})(.*)")
-    return ["vrrp_brief",["vrid", "state",  "interface", "type","ip"],tableData];
+    return ["vrrp_brief",["vrid", "state",  "interface", "configtype","ip","runningpriority","advertimer","authtype"],tableData];
 }
 
 
@@ -99,7 +103,7 @@ function getPowerInfo(data){
     var line="--------------------------------------------------------------------------\r\n";
     data=getTableData(data,line,"")
     var tableData=parseTableData(data,"\r\n","(.{9})(.{8})(.{7})(.{11})(.{13})(.{13})(.*)")
-    return ["power",["powerid", "online",  "mode", "state","current","voltage","realpwr"],tableData];
+    return ["power",["powerid", "online",  "mode", "state","current","voltage","realpwr","FanDirection"],tableData];
 }
 
 exports.getArpInfo=getArpInfo;

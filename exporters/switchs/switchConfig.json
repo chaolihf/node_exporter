@@ -12,6 +12,22 @@
                 {
                     "command":"display arp",
                     "scriptFunction":"getArpInfo"
+                },
+                {
+                    "command":"display ospf peer brief",
+                    "scriptFunction":"getOspfInfo"
+                },
+                {
+                    "command":"display mac-address",
+                    "scriptFunction":"getMacInfo"
+                },
+                {
+                    "command":"display vrrp brief",
+                    "scriptFunction":"getVrrpInfo"
+                },
+                {
+                    "command":"display power",
+                    "scriptFunction":"getPowerInfo"
                 }
             ]
         },
@@ -25,6 +41,22 @@
                 {
                     "command":"display arp",
                     "scriptFunction":"getArpInfo"
+                },
+                {
+                    "command":"display ospf peer",
+                    "scriptFunction":"getOspfInfo"
+                },
+                {
+                    "command":"display mac-address",
+                    "scriptFunction":"getMacInfo"
+                },
+                {
+                    "command":"display vrrp",
+                    "scriptFunction":"getVrrpInfo"
+                },
+                {
+                    "command":"display power",
+                    "scriptFunction":"getPowerInfo"
                 }
             ]
 

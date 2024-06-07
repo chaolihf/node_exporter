@@ -86,12 +86,14 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 	if err != nil {
 		return nil
 	}
-	session := sshclient.NewSSHSession(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
-	if session == nil {
+	connection := sshclient.NewSSHConnection(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
+	if connection == nil {
 		return nil
 	}
-	defer session.CloseSession()
+	defer connection.CloseConnection()
 	if shellInfo.Shell == "1" {
+		session := connection.NewSession()
+		defer session.CloseSession()
 		content, err := session.ExecuteShellCommand(shellInfo.Steps[0].Command,
 			moreCommand, shellInfo.Prompt, clearLine)
 		if err != nil {
@@ -107,13 +109,16 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 		}
 	} else {
 		for _, stepInfo := range shellInfo.Steps {
+			session := connection.NewSession()
 			content, err := session.ExecuteSingleCommand(stepInfo.Command)
 			if err != nil {
 				return nil
 			}
 			switchLogger.Info(content)
 			metrics = append(metrics, runScript(runner, stepInfo.ScriptFunction, content)...)
+			session.CloseSession()
 		}
+
 	}
 	return metrics
 }

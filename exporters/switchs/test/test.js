@@ -1,10 +1,11 @@
 const fs = require('fs');
-const parser = require('../manufacturer/huawei.js');
+const huaweiParser = require('../manufacturer/huawei.js');
+const h3Parser = require('../manufacturer/h3.js');
 
 async function readHuaweiArp() {
     try {
       var data = await fs.promises.readFile('node_exporter/exporters/switchs/test/huawei-arp.txt', 'utf8');
-      var tableData=parser.getArpInfo(data);
+      var tableData=huaweiParser.getArpInfo(data);
       console.log(tableData)
     } catch (err) {
       console.error('Error reading file:', err);
@@ -14,7 +15,7 @@ async function readHuaweiArp() {
 async function readHuaweiOspf() {
     try {
       var data = await fs.promises.readFile('node_exporter/exporters/switchs/test/huawei-ospf.txt', 'utf8');
-      var tableData=parser.getOspfInfo(data);
+      var tableData=huaweiParser.getOspfInfo(data);
       console.log(tableData)
     } catch (err) {
       console.error('Error reading file:', err);
@@ -24,7 +25,7 @@ async function readHuaweiOspf() {
 async function readHuaweiMac() {
   try {
     var data = await fs.promises.readFile('node_exporter/exporters/switchs/test/huawei-mac.txt', 'utf8');
-    var tableData=parser.getMacInfo(data);
+    var tableData=huaweiParser.getMacInfo(data);
     console.log(tableData)
   } catch (err) {
     console.error('Error reading file:', err);
@@ -35,7 +36,7 @@ async function readHuaweiMac() {
 async function readHuaweiVrrp() {
   try {
     var data = await fs.promises.readFile('node_exporter/exporters/switchs/test/huawei-vrrp.txt', 'utf8');
-    var tableData=parser.getVrrpInfo(data);
+    var tableData=huaweiParser.getVrrpInfo(data);
     console.log(tableData)
   } catch (err) {
     console.error('Error reading file:', err);
@@ -45,12 +46,24 @@ async function readHuaweiVrrp() {
 async function readHuaweiPower() {
   try {
     var data = await fs.promises.readFile('node_exporter/exporters/switchs/test/huawei-power.txt', 'utf8');
-    var tableData=parser.getPowerInfo(data);
+    var tableData=huaweiParser.getPowerInfo(data);
     console.log(tableData)
   } catch (err) {
     console.error('Error reading file:', err);
   }
 }
 
-readHuaweiVrrp();
+
+async function readH3Ospf() {
+  try {
+    var data = await fs.promises.readFile('node_exporter/exporters/switchs/test/h3-ospf.txt', 'utf8');
+    var tableData=h3Parser.getOspfInfo(data);
+    console.log(tableData)
+  } catch (err) {
+    console.error('Error reading file:', err);
+  }
+}
+
+
+readH3Ospf();
 
