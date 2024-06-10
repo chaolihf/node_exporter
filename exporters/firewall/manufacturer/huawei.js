@@ -86,9 +86,13 @@ function parseAddressInfo(items){
         return {type:1,start:items[1],end:items[2]};
     } else if (items[0]=="address-set"){
         return {type:2,name:items[1]};
+    } else if (items[0]=="domain-set"){
+        return {type:3,name:items[1]};
     } else if (items[1]=="mask"){
-        return {type:0,address:items[0],mask:items[2]};
-    } else {
+        return {type:0,address:items[0],mask:items[2],v4:1};
+    } else if (items[0].indexOf(":")!=-1){
+        return {type:0,address:items[0],mask:items[2],v4:0};
+    } else{
         console.info("error parse address " + items);
     }
 
@@ -108,7 +112,10 @@ function parseIpAddressSet(data){
             case "address":
                 address.push(items.slice(2))
                 break;
-                
+            case "":
+                break;
+            default:
+                console.info("error parse ip address set " + data );
         }
     }
     return {name:name,description:description,address:address}
@@ -116,59 +123,111 @@ function parseIpAddressSet(data){
 
 function parseIpServiceSet(data){
     var parts=data.split("\r\n");
-    var addressSet={};
+    var name,description,service=[];
     for(var i=0;i<parts.length;i++){
-        var part=parts[i];
-        
+        var items=parts[i].trim().split(" ");
+        switch (items[0]){
+            case "ip":
+                name=items[2];
+                break;
+            case "description":
+                description=items[1];           
+                break;
+            case "service":
+                service.push( parseServiceItem(items.slice(2)));
+                break;
+            case "":
+                break;
+            default:
+                console.info("error parse " + data );
+        }
     }
+    return {name:name,description:description,service:service};
+}
+
+function parseServiceItem(items){
+    var index=0;
+    var serviceItem={};
+    while(index<items.length){
+        var item=items[index];
+        switch(item){
+            case "protocol":{
+                serviceItem.protocol=items[index+1];
+                index+=2;
+                break;
+            }
+            case "source-port":
+            case "destination-port":{
+                var portInfos=parsePorts(items.slice(index+1));
+                index+=portInfos.length+1;
+                serviceItem[item]=portInfos.ports;
+                break;
+            }
+            case "service-set":{
+                serviceItem.service=items[index+1];
+                index+=2;
+                break;
+            }
+            default:
+                console.info("error parse "+ items);
+
+        }
+    }
+    return serviceItem;
+}
+
+function parsePorts(items){
+    var index=0;
+    var ports=[];
+    while(index<items.length){
+        const port=parseInt(items[index]);
+        if (isNaN(port)) break;
+        if (index+1<items.length && items[index+1]=="to" ){
+            ports.push({from:items[index],to:items[index+2]});
+            index+=3;
+        } else{
+            ports.push({from:items[index],to:items[index]});
+            index+=1;
+        }
+    }
+    return {length:index,ports:ports};
 }
 
 function parseZoneSet(data){
     var parts=data.split("\r\n");
-    var addressSet={};
+    var zoneInfo={};
+    var interfaces=[];
     for(var i=0;i<parts.length;i++){
-        var part=parts[i];
-        
-    }
-}
-
-function getTableData(content,startLine,endLine){
-    if (startLine.length > 0) {
-        let index = content.indexOf(startLine);
-        if (index !== -1) {
-            content = content.slice(index + startLine.length);
+        var items=parts[i].trim().split(" ");
+        switch(items[0]){
+            case "firewall":
+                if (items[2]=="name" ){
+                    zoneInfo.name=items[3];
+                } else{
+                    zoneInfo.name=items[2];
+                }
+                break;
+            case "description":
+                zoneInfo.description=items[1];
+                break;
+            case "set":
+                    if (items[1]=="priority") {
+                        zoneInfo.priority=items[2];
+                        break;
+                    }
+            case "add":
+                if (items[1]=="interface") {
+                    interfaces.push(items[2]);
+                    break;
+                }
+            case "":
+                break;
+            default:
+                console.info("error prase zone " + data);
         }
     }
-    if (endLine.length > 0) {
-        let index = content.indexOf(endLine);
-        if (index !== -1) {
-            content = content.slice(0, index);
-        }
-    }
-    return content;
-}
-
-function parseTableData(content, lineSeparator, rowPattern) {
-    let table = [];
-    let rows = content.split(lineSeparator);
-    let regex = new RegExp(rowPattern);
-    let lastIndex = -1;
-    for (let i = 0; i < rows.length; i++) {
-        let row = rows[i].trim();
-        if (row.length === 0) {
-            continue;
-        }
-        let matches = regex.exec(row);
-        if (matches && matches.length > 0) {
-            table.push(matches.slice(1).map(record=>record.trim()));
-            lastIndex++;
-        } else {
-            if (lastIndex >= 0) {
-                table[lastIndex].push(row.trim());
-            }
-        }
-    }
-    return table;
+    zoneInfo.interfaces=interfaces;
+    return zoneInfo;
 }
 
 exports.getConfInfo=getConfInfo;
