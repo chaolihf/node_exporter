@@ -167,7 +167,7 @@ func parseMetric(lineParser *regexp.Regexp, row string, name string) (prometheus
 			}
 		}
 		//补全标签
-		for i := 1; i <= 3; i++ {
+		for i := 1; i <= 5; i++ {
 			key := "t" + strconv.Itoa(i)
 			_, exists := tags[key]
 			if !exists {
