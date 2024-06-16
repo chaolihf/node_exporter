@@ -1,3 +1,4 @@
+const { match } = require("assert");
 
 /*
     return shell config ,first is more command ,second is clear line command 
@@ -8,10 +9,7 @@ function getShellConfig() {
 
 function getConfInfo(data){
     var parts=data.split("#\r\n");
-    var addressSet=[];
-    var serviceSet=[];
-    var zoneSet=[];
-    var rules;
+    var addressSet=[],serviceSet=[],zoneSet=[],rules,domains;
     for(var i=0;i<parts.length;i++){
         var part=parts[i];
         if (part.startsWith("ip address-set")){
@@ -22,12 +20,48 @@ function getConfInfo(data){
             zoneSet.push(parseZoneSet(part));
         } else if (part.startsWith("security-policy")){
             rules=parseRules(part);
-        } 
+        } else if (part.startsWith(" domain-set")){
+            domains=parseDomainSet(part);
+        }
     }
-    return {addressSet:addressSet,serviceSet:serviceSet,zoneSet:zoneSet,rules:rules};
+    return {addressSet:addressSet,serviceSet:serviceSet,zoneSet:zoneSet,rules:rules,domains:domains};
+}
+
+function parseDomainSet(data){
+    var domainSet=[];
+    var domainPart=data.split("domain-set");
+    for (var j=0;j<domainPart.length;j++){
+        var parts=domainPart[j].trim().split("\r\n");
+        var domainInfo={};
+        var domains=[];
+        for(var i=0;i<parts.length;i++){
+            var items=parts[i].trim().split(" ");
+            switch(items[0]){
+                case "name":
+                    domainInfo.name=items[1];
+                    break;
+                case "description":
+                    domainInfo.description=items[1];
+                    break;
+                case "add":
+                    if (items[1]=="domain") {
+                        domains.push(items[2]);
+                        break;
+                    }
+                case "":
+                    break;
+                default:
+                    console.info("error prase domain " + data);
+            }
+        }
+        domainInfo.domains=domains;
+        domainSet.push(domainInfo);
+    }
+    return domainSet;
 }
 
 function parseRules(data){
+    let match;
     const regex = / rule name ([\s\S]*?)\r\n([\s\S]*?)\r\n  action ([\s\S]*?)\r\n/g;
     var rules=[];
     while ((match = regex.exec(data)) !== null) {
