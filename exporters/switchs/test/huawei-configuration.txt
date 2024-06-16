@@ -1,0 +1,2396 @@
+display current-configuration
+!Software Version V200R010C00SPC600
+#
+sysname TDL-JF-9310-1
+#
+info-center loghost source LoopBack0
+info-center loghost 134.64.58.180
+#
+ipv6
+#
+vlan batch 550 552 554 556 565 to 571 573 575 to 577 580 582 to 585 588 to 589
+vlan batch 592 to 593 596 to 597 600 to 604 1023
+#
+authentication-profile name default_authen_profile
+authentication-profile name dot1x_authen_profile
+authentication-profile name mac_authen_profile
+authentication-profile name portal_authen_profile
+authentication-profile name dot1xmac_authen_profile
+authentication-profile name multi_authen_profile
+#
+access-user arp-detect default ip-address 0.0.0.0
+#
+qos car 132100 cir 200000 cbs 37600000
+#
+undo http server enable
+#                                         
+clock timezone BeiJing add 08:00:00
+#
+set max-ecmp-path 32
+#
+diffserv domain default
+#
+ip vpn-instance F5
+ ipv4-family
+  route-distinguisher 3:3
+  vpn-target 3:3 export-extcommunity
+  vpn-target 3:3 import-extcommunity
+ ipv6-family
+  route-distinguisher 3:3
+  vpn-target 3:3 export-extcommunity
+  vpn-target 3:3 import-extcommunity
+#
+ip vpn-instance Jifei
+ ipv4-family
+  route-distinguisher 2:2
+  vpn-target 2:2 export-extcommunity
+  vpn-target 2:2 import-extcommunity
+ ipv6-family
+  route-distinguisher 2:2
+  vpn-target 2:2 export-extcommunity      
+  vpn-target 2:2 import-extcommunity
+#
+ip vpn-instance untrust
+ ipv4-family
+  route-distinguisher 1:1
+  vpn-target 1:1 export-extcommunity
+  vpn-target 1:1 import-extcommunity
+ ipv6-family
+  route-distinguisher 1:1
+  vpn-target 1:1 export-extcommunity
+  vpn-target 1:1 import-extcommunity
+#
+radius-server template default
+#
+acl number 2000
+ description SSH
+ rule 5 permit source 134.64.90.0 0.0.1.255
+ rule 10 permit source 134.64.231.0 0.0.0.255
+ rule 15 permit source 134.64.224.0 0.0.0.255
+ rule 20 permit source 134.64.111.66 0
+ rule 25 permit source 134.64.115.196 0
+ rule 30 permit source 134.64.2.0 0.0.1.255
+ rule 35 permit source 134.64.11.128 0.0.0.127
+ rule 40 permit source 134.64.254.0 0.0.1.255
+ rule 45 permit source 134.85.0.0 0.0.63.255
+ rule 50 permit source 134.85.64.0 0.0.15.255
+ rule 55 permit source 134.85.128.0 0.0.63.255
+ rule 60 permit source 134.85.192.0 0.0.15.255
+ rule 70 permit source 134.64.128.136 0.0.0.1
+ rule 75 permit source 134.64.128.138 0
+ rule 80 permit source 134.64.230.240 0
+ rule 85 permit source 134.64.96.130 0
+ rule 200 permit source 134.95.128.0 0.0.3.255
+ rule 205 permit source 134.64.11.202 0
+ rule 210 permit source 134.64.11.203 0
+ rule 215 permit source 134.64.198.174 0.0.0.1
+ rule 220 permit source 134.84.200.0 0.0.0.255
+ rule 225 permit source 134.64.55.0 0.0.0.127
+ rule 230 permit source 134.64.235.0 0.0.0.127
+ rule 235 permit source 134.95.237.121 0
+ rule 240 permit source 134.95.237.98 0
+ rule 245 permit source 134.95.237.59 0
+ rule 250 permit source 134.95.170.10 0
+acl number 2015
+ description SNMP
+ rule 0 permit source 134.64.101.243 0
+ rule 1 permit source 134.64.101.200 0.0.0.1
+ rule 3 permit source 134.64.111.205 0    
+ rule 5 permit source 134.64.198.174 0.0.0.1
+ rule 10 permit source 134.64.105.57 0
+ rule 15 permit source 134.64.114.80 0
+ rule 20 permit source 134.64.220.94 0
+ rule 25 permit source 134.84.200.0 0.0.0.255
+ rule 30 permit source 134.95.237.59 0
+ rule 35 permit source 134.95.237.98 0
+ rule 40 permit source 134.95.237.121 0
+#
+acl number 3000
+ rule 10 permit ip destination 134.95.132.100 0
+ rule 15 permit ip source 134.95.132.100 0
+#
+traffic classifier 132100car operator or precedence 5
+ if-match acl 3000
+#
+traffic behavior 132100car
+ permit
+ car cir 500000 pir 500000 cbs 10000 pbs 10000 mode color-blind green pass yellow pass red discard
+traffic behavior test
+ permit
+#
+traffic policy 132100car match-order config
+ classifier 132100car behavior 132100car  
+#
+free-rule-template name default_free_rule
+#
+portal-access-profile name portal_access_profile
+#
+drop-profile default
+#
+vlan 550
+ description TO-[TDL_3F_K7_RJ6220]-VLAN550
+vlan 552
+ description TO-[TDL_3F_K8_RJ6220]-VLAN552
+vlan 554
+ description TO-[TDL_3F_L6_RJ6220]-VLAN554
+vlan 556
+ description TO-[TDL_3F_L7_RJ6220]-VLAN556
+vlan 588
+ description to_A13
+vlan 589
+ description to_A14
+vlan 592
+ description to_K12
+vlan 593
+ description to_L10
+vlan 596                                  
+ description to_3FK5
+vlan 597
+ description to_3FK6
+#
+aaa
+ authentication-scheme default
+ authentication-scheme radius
+  authentication-mode radius
+ authorization-scheme default
+ accounting-scheme default
+ domain default
+  authentication-scheme radius
+  radius-server default
+ domain default_admin
+  authentication-scheme default
+ undo local-user admin
+ local-user qxnm password irreversible-cipher $1a$77BiS/n$0<$rOYNO&r@}-N)o_OzLj8!}$F4J*]vPS#-/'@ij}qD$
+ local-user qxnm privilege level 15
+ local-user qxnm service-type telnet terminal ssh
+ local-user nmread password irreversible-cipher $1a$CL/1.Y<$J.$DEZVKx@zVNCz(lO=H8gKSbc'I%UpqHI`Hw'4YL;1$
+ local-user nmread privilege level 1
+ local-user nmread service-type ssh
+#
+ospfv3 601 vpn-instance untrust           
+ router-id 134.95.128.1
+#
+ospfv3 602 vpn-instance Jifei
+ router-id 134.95.132.2
+#
+ospfv3 603 vpn-instance F5
+ router-id 134.95.140.2
+#
+ntp-service ipv6 server disable
+ntp-service source-interface LoopBack0 vpn-instance untrust
+ntp-service unicast-server 134.65.66.3 vpn-instance untrust
+ntp-service unicast-server 134.65.18.2 vpn-instance untrust preference
+#
+interface Vlanif550
+ description TO-[TDL_3F_K7_RJ6220]-VlanIF550
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.161 255.255.255.252
+ ospf network-type p2p
+#
+interface Vlanif552
+ description TO-[TDL_3F_K8_RJ6220]-VlanIF552
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.165 255.255.255.252
+ ospf network-type p2p                    
+#
+interface Vlanif554
+ description TO-[TDL_3F_L6_RJ6220]-VlanIF554
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.169 255.255.255.252
+ ospf network-type p2p
+#
+interface Vlanif556
+ description TO-[TDL_3F_L7_RJ6220]-VlanIF556
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.173 255.255.255.252
+ ospf network-type p2p
+#
+interface Vlanif565
+ description To_TDL3F-H8-S9312-1_eth9
+ ip binding vpn-instance untrust
+ ipv6 enable
+ ip address 134.95.129.18 255.255.255.252
+ ipv6 address 240E:1C5:8230:1F03::2/64
+ ipv6 address auto link-local
+ ospfv3 601 area 0.0.0.0
+#
+interface Vlanif567
+ description To_TDL3F-H7-S9312-2_eth9     
+ ip binding vpn-instance untrust
+ ipv6 enable
+ ip address 134.95.130.18 255.255.255.252
+ ipv6 address 240E:1C5:8230:1F05::2/64
+ ipv6 address auto link-local
+ ospfv3 601 area 0.0.0.0
+#
+interface Vlanif569
+ description to_9310-2_untrust
+ ip binding vpn-instance untrust
+ ipv6 enable
+ ip address 134.95.131.5 255.255.255.252
+ ipv6 address 240E:1C5:8230:2000::1/64
+ ipv6 address auto link-local
+ ospfv3 601 area 0.0.0.0
+#
+interface Vlanif570
+ description to_9310-2_Jifei
+ ip binding vpn-instance Jifei
+ ipv6 enable
+ ip address 134.95.131.9 255.255.255.252
+ ipv6 address 240E:1C5:8230:3100::1/64
+ ipv6 address auto link-local
+ ospfv3 602 area 0.0.0.0                  
+#
+interface Vlanif571
+ description to_9008-1_untrust
+ ip binding vpn-instance untrust
+ ipv6 enable
+ ip address 134.95.129.25 255.255.255.252
+ ipv6 address 240E:1C5:8230:2001::1/64
+ ipv6 address auto link-local
+ ospfv3 601 area 0.0.0.0
+ ospfv3 network-type p2p
+ ospf network-type p2p
+#
+interface Vlanif573
+ description to_9008-1_Jifei
+ ip binding vpn-instance Jifei
+ ipv6 enable
+ ip address 134.95.129.30 255.255.255.252
+ ipv6 address 240E:1C5:8230:400::2/64
+ ipv6 address auto link-local
+ ospfv3 602 area 0.0.0.0
+ ospfv3 network-type p2p
+ ospf network-type p2p
+#
+interface Vlanif575                       
+ ip binding vpn-instance Jifei
+ ipv6 enable
+ ip address 134.95.132.2 255.255.255.128
+ ipv6 address 240E:1C5:822F:3100::2/64
+ ipv6 address auto link-local
+ ospfv3 602 area 0.0.0.0
+ vrrp vrid 1 virtual-ip 134.95.132.1
+ vrrp vrid 1 priority 120
+ vrrp vrid 1 track interface Vlanif565 reduced 30
+ vrrp vrid 1 track interface Vlanif567 reduced 30
+ vrrp6 vrid 1 virtual-ip FE80::575 link-local
+ vrrp6 vrid 1 virtual-ip 240E:1C5:822F:3100::1
+ vrrp6 vrid 1 priority 120
+#
+interface Vlanif576
+ description to_A6_5320
+ ip binding vpn-instance Jifei
+ ipv6 enable
+ ip address 134.95.129.129 255.255.255.252
+ ipv6 address 240E:1C5:8230:2003::1/64
+ ipv6 address auto link-local
+ ospfv3 602 area 0.0.0.0
+#
+interface Vlanif577                       
+ description to_B6_5320
+ ip binding vpn-instance Jifei
+ ipv6 enable
+ ip address 134.95.129.133 255.255.255.252
+ ipv6 address 240E:1C5:8230:2004::1/64
+ ipv6 address auto link-local
+ ospfv3 602 area 0.0.0.0
+#
+interface Vlanif580
+ ip binding vpn-instance F5
+ ipv6 enable
+ ip address 134.95.129.34 255.255.255.252
+ ipv6 address 240E:1C5:8230:402::2/64
+ ipv6 address auto link-local
+ ospfv3 603 area 0.0.0.0
+ ospfv3 network-type p2p
+ ospf network-type p2p
+#
+interface Vlanif582
+ ip binding vpn-instance F5
+ ipv6 enable
+ ip address 134.95.140.2 255.255.255.192
+ ipv6 address 240E:1C5:822F:3200::2/64
+ ipv6 address auto link-local             
+ ospfv3 603 area 0.0.0.0
+ vrrp vrid 1 virtual-ip 134.95.140.1
+ vrrp vrid 1 priority 120
+ vrrp vrid 1 track interface Vlanif565 reduced 30
+ vrrp vrid 1 track interface Vlanif567 reduced 30
+ vrrp6 vrid 1 virtual-ip FE80::582 link-local
+ vrrp6 vrid 1 virtual-ip 240E:1C5:822F:3200::1
+ vrrp6 vrid 1 priority 120
+#
+interface Vlanif583
+ ip binding vpn-instance F5
+ ipv6 enable
+ ip address 134.95.140.66 255.255.255.192
+ ipv6 address 240E:1C5:822F:3201::2/64
+ ipv6 address auto link-local
+ ospfv3 603 area 0.0.0.0
+ vrrp vrid 1 virtual-ip 134.95.140.65
+ vrrp vrid 1 priority 120
+ vrrp vrid 1 track interface Vlanif565 reduced 30
+ vrrp vrid 1 track interface Vlanif567 reduced 30
+ vrrp6 vrid 1 virtual-ip FE80::583 link-local
+ vrrp6 vrid 1 virtual-ip 240E:1C5:822F:3201::1
+ vrrp6 vrid 1 priority 120
+#                                         
+interface Vlanif584
+ shutdown
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.37 255.255.255.252
+#
+interface Vlanif585
+ shutdown
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.41 255.255.255.252
+#
+interface Vlanif588
+ description to_A13
+ ip binding vpn-instance Jifei
+ ipv6 enable
+ ip address 134.95.129.137 255.255.255.252
+ ipv6 address 240E:1C5:8230:2005::1/64
+ ipv6 address auto link-local
+ ospfv3 602 area 0.0.0.0
+#
+interface Vlanif589
+ description to_A14
+ ip binding vpn-instance Jifei
+ ipv6 enable
+ ip address 134.95.129.141 255.255.255.252
+ ipv6 address 240E:1C5:8230:2006::1/64
+ ipv6 address auto link-local
+ ospfv3 602 area 0.0.0.0
+#
+interface Vlanif592
+ description to_K12
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.145 255.255.255.252
+#
+interface Vlanif593
+ description to_L10
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.149 255.255.255.252
+#
+interface Vlanif596
+ description to_3FK5
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.153 255.255.255.252
+#
+interface Vlanif597
+ description to_3FK6
+ ip binding vpn-instance Jifei
+ ip address 134.95.129.157 255.255.255.252
+#                                         
+interface Vlanif600
+ ip binding vpn-instance Jifei
+ ip address 134.95.133.2 255.255.255.128
+ vrrp vrid 1 virtual-ip 134.95.133.1
+ vrrp vrid 1 priority 120
+ vrrp vrid 1 track interface Vlanif565 reduced 30
+ vrrp vrid 1 track interface Vlanif567 reduced 30
+#
+interface Vlanif601
+ ip binding vpn-instance Jifei
+ ip address 134.95.134.2 255.255.255.128
+ vrrp vrid 1 virtual-ip 134.95.134.1
+ vrrp vrid 1 priority 120
+ vrrp vrid 1 track interface Vlanif565 reduced 30
+ vrrp vrid 1 track interface Vlanif567 reduced 30
+#
+interface Vlanif602
+ ip binding vpn-instance Jifei
+ ip address 134.95.134.130 255.255.255.128
+ vrrp vrid 1 virtual-ip 134.95.134.129
+ vrrp vrid 1 priority 120
+ vrrp vrid 1 track interface Vlanif565 reduced 30
+ vrrp vrid 1 track interface Vlanif567 reduced 30
+#                                         
+interface Vlanif603
+ ip binding vpn-instance Jifei
+ ip address 134.95.135.2 255.255.255.128
+ vrrp vrid 1 virtual-ip 134.95.135.1
+ vrrp vrid 1 priority 120
+ vrrp vrid 1 track interface Vlanif565 reduced 30
+ vrrp vrid 1 track interface Vlanif567 reduced 30
+#
+interface Vlanif604
+ ip binding vpn-instance Jifei
+ ip address 134.95.135.130 255.255.255.128
+ vrrp vrid 1 virtual-ip 134.95.135.129
+ vrrp vrid 1 priority 120
+ vrrp vrid 1 track interface Vlanif565 reduced 30
+ vrrp vrid 1 track interface Vlanif567 reduced 30
+#
+interface Eth-Trunk1
+ description To_TDL3F-H8-S9312-1_eth9
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 565
+ mode lacp
+#
+interface Eth-Trunk2                      
+ description To_TDL3F-H7-S9312-2_eth9
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 567
+ mode lacp
+#
+interface Eth-Trunk3
+ description To_TDL-JF-9310-2_eth3_HuLian
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 569 to 570 575 582 to 583 600 to 604
+ mode lacp
+#
+interface Eth-Trunk4
+ description To_TDL-JF-M9008-1
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 571 573 580
+ mode lacp
+#
+interface Eth-Trunk5
+ description to_F5_A6_up
+ port link-type access
+ port default vlan 582                    
+ mode lacp
+#
+interface Eth-Trunk6
+ description to_F5_B6_up
+ shutdown
+ port link-type access
+ port default vlan 583
+ mode lacp
+#
+interface Ethernet0/0/0
+ shutdown
+#
+interface XGigabitEthernet1/0/0
+ description To_TDL3F-H8-S9312-1_eth9_XG12/0/3
+ eth-trunk 1
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/1
+ description To_TDL3F-H7-S9312-2_eth9_xg12/0/3
+ eth-trunk 2
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/2
+ eth-trunk 3
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/3
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/4
+ description To_TDL-JF-M9008-1_T1/2/0/11
+ eth-trunk 4
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/5
+ shutdown                                 
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/6
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/7
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/8
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/9
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/10
+ description to_134.95.132.33_NIC#1
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/11
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet1/0/12
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/13
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/14
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/15
+ port link-type access
+ port default vlan 575                    
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/16
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/17
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/18
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet1/0/19
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/20
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/21
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/22
+ port link-type access                    
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/23
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/24
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/25
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/26
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/27
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/28
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/29          
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/30
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet1/0/31
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/0
+ description To_TDL3F-H8-S9312-1_eth9
+ shutdown
+ eth-trunk 1                              
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/1
+ description To_TDL3F-H7-S9312-2_eth9
+ shutdown
+ eth-trunk 2
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/2
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/3
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/4
+ description to_9008-1_t1/2/0/12
+ eth-trunk 4
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/5
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/6
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/7           
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/8
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/9
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/10
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/11
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/12
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/13
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet2/0/14
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/15
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/16
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/17
+ port link-type access
+ port default vlan 575                    
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/18
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/19
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/20
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet2/0/21
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/22
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/23
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/24
+ port link-type access                    
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/25
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/26
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/27
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/28
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/29
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/30
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet2/0/31          
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/0
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/1
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/2
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/3
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/4
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/5
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet3/0/6
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/7
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/8
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/9
+ port link-type access
+ port default vlan 575                    
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/10
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/11
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/12
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet3/0/13
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/14
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/15
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/16
+ port link-type access                    
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/17
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/18
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/19
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/20
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/21
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/22
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/23          
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/24
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/25
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/26
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/27
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/28
+ description to_134.95.133.15
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/29
+ description TO-[TDL-5F-K14-5-DELL R740-2#]
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/30
+ description TO-[TDL-5F-K14-6-DELL R740-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet3/0/31
+ description TO-[TDL-5F-K14-7-DELL R740-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/0
+ description TO-[TDL-5F-K14-8-DELL R740-2#]
+ port link-type access
+ port default vlan 600                    
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/1
+ description TO-[TDL-5F-K15-5-DELL R740-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/2
+ description TO-[TDL-5F-K15-6-DELL R740-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/3
+ description TO-[TDL-5F-K15-7-DELL R740-2#]
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/4
+ description TO-[TDL-5F-K15-8-DELL R740-2#]
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/5
+ description TO-[TDL-5F-K16-5-DELL R740-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/6           
+ description TO-[TDL-5F-K16-6-DELL R740-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/7
+ description TO-[TDL-5F-K16-7-DELL R740-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/8
+ description TO-[TDL-5F-K16-8-DELL R740-2#]
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet4/0/9
+ description TO-[TDL-5F-L13-1-HP DL380-G10-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/10
+ description TO-[TDL-5F-L13-2-HP DL380-G10-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/11
+ description TO-[TDL-5F-L13-3-HP DL380-G10-2#]
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 601 to 604    
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/12
+ description TO-[TDL-5F-L13-4-HP DL380-G10-2#]
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/13
+ description TO-[TDL-5F-L14-1-HP DL380-G10-2#]
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/14
+ description TO-[TDL-5F-L14-2-HP DL380-G10-2#]
+ port link-type access
+ port default vlan 600                    
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/15
+ description TO-[TDL-5F-L14-3-HP DL380-G10-2#]
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/16
+ description TO-[TDL-5F-L14-4-HP DL380-G10-2#]
+ port link-type access
+ port default vlan 600
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/17
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/18
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/19
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/20
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet4/0/21
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/22
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/23
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/24
+ shutdown
+ port hybrid tagged vlan 1023             
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/25
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/26
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/27
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet4/0/28
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/29
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/30
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet4/0/31
+ shutdown                                 
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/0
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/1
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/2
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/3
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/4
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/5
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/6           
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/7
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/8
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/9
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/10
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/11
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/12
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet5/0/13
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/14
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/15
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/16
+ shutdown
+ port hybrid tagged vlan 1023             
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/17
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/18
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/19
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet5/0/20
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/21
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/22
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/23
+ shutdown                                 
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/24
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/25
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/26
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/27
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/28
+ eth-trunk 4
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/29
+ eth-trunk 4
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/30
+ eth-trunk 3
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet5/0/31
+ eth-trunk 3
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/0
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/1
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/2           
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/3
+ shutdown
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/4
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/5
+ port link-type access
+ port default vlan 575                    
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/6
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/7
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/8
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet6/0/9
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/10
+ port link-type access
+ port default vlan 575
+ traffic-policy 132100car inbound
+ traffic-policy 132100car outbound
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/11
+ description To_zhangyu_132.106_20220620
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet6/0/12
+ description To_zhangyu_132.107_20220620
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/13
+ description To_zhangyu_132.108_20220620
+ port link-type access
+ port default vlan 575
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/14
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet6/0/15
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/16
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/17
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/18
+ shutdown
+ port hybrid tagged vlan 1023             
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/19
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/20
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/21
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet6/0/22
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/23
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/24
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/25
+ shutdown                                 
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/26
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/27
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/28
+ eth-trunk 4
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet6/0/29
+ eth-trunk 4
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/30
+ eth-trunk 3
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet6/0/31
+ eth-trunk 3
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/0
+ description to_B6_5320
+ port link-type access
+ port default vlan 576
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/1
+ eth-trunk 5
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/2
+ shutdown
+ eth-trunk 6
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/3
+ shutdown
+ port link-type access
+ port default vlan 584
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet7/0/4
+ description to_A13_47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 588
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/5
+ description to_L10_47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 593
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/6
+ description to_3FK5_47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 596
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/7
+ description TO-[TDL_3F_K7_RJ6220]-TGE0/47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 550
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/8
+ description TO-[TDL_3F_L6_RJ6220]-TGE0/47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 554
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/9
+ shutdown
+ port hybrid tagged vlan 1023             
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/10
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/11
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/12
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet7/0/13
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/14
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/15
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/16
+ shutdown                                 
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/17
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/18
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/19
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/20
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/21
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/22
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/23          
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/24
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/25
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/26
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/27
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/28
+ eth-trunk 4
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/29
+ eth-trunk 4
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/30
+ eth-trunk 3                              
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet7/0/31
+ eth-trunk 3
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/0
+ description to_A6_5320
+ port link-type access
+ port default vlan 577
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/1
+ eth-trunk 5
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet8/0/2
+ shutdown
+ eth-trunk 6
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/3
+ shutdown
+ port link-type access
+ port default vlan 585
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/4
+ description to_A14_47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 589
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet8/0/5
+ description to_K12_47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 592
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/6
+ description to_3FK6_47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 597
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/7
+ description TO-[TDL_3F_K8_RJ6220]-TGE0/47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 552
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/8
+ description TO-[TDL_3F_L7_RJ6220]-TGE0/47
+ port link-type trunk
+ undo port trunk allow-pass vlan 1
+ port trunk allow-pass vlan 556
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/9
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/10
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5                  
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/11
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/12
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/13
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/14          
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/15
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/16
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/17
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/18
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/19
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/20
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#                                         
+interface XGigabitEthernet8/0/21
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/22
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/23
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/24
+ shutdown
+ port hybrid tagged vlan 1023             
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/25
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/26
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/27
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5                  
+#
+interface XGigabitEthernet8/0/28
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/29
+ shutdown
+ port hybrid tagged vlan 1023
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/30
+ eth-trunk 3
+ unicast-suppression 5
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface XGigabitEthernet8/0/31
+ shutdown
+ unicast-suppression 5                    
+ multicast-suppression 5
+ broadcast-suppression 5
+#
+interface NULL0
+#
+interface LoopBack0
+ ip binding vpn-instance untrust
+ ip address 134.95.128.1 255.255.255.255
+#
+ospf 1 vpn-instance untrust
+ area 0.0.0.0
+  network 134.95.128.1 0.0.0.0
+  network 134.95.129.16 0.0.0.3
+  network 134.95.129.24 0.0.0.3
+  network 134.95.130.16 0.0.0.3
+  network 134.95.131.4 0.0.0.3
+#
+ospf 2 vpn-instance Jifei
+ silent-interface Vlanif575
+ silent-interface Vlanif602
+ silent-interface Vlanif603
+ silent-interface Vlanif604
+ silent-interface Vlanif601
+ area 0.0.0.0                             
+  network 134.95.129.28 0.0.0.3
+  network 134.95.129.128 0.0.0.7
+  network 134.95.129.136 0.0.0.7
+  network 134.95.129.144 0.0.0.7
+  network 134.95.129.152 0.0.0.7
+  network 134.95.129.160 0.0.0.3
+  network 134.95.129.164 0.0.0.3
+  network 134.95.129.168 0.0.0.3
+  network 134.95.129.172 0.0.0.3
+  network 134.95.131.8 0.0.0.3
+  network 134.95.132.0 0.0.0.127
+  network 134.95.133.0 0.0.0.127
+  network 134.95.134.0 0.0.0.127
+  network 134.95.134.128 0.0.0.127
+  network 134.95.135.0 0.0.0.127
+  network 134.95.135.128 0.0.0.127
+#
+ospf 3 vpn-instance F5
+ area 0.0.0.0
+  network 134.95.129.32 0.0.0.3
+  network 134.95.140.0 0.0.0.63
+  network 134.95.140.64 0.0.0.63
+#
+snmp-agent                                
+snmp-agent acl 2015
+snmp-agent local-engineid 800007DB03F479609AD5D0
+snmp-agent community read cipher ******
+snmp-agent community read cipher ******
+snmp-agent sys-info version v2c v3
+#
+stelnet server enable
+ssh user huawei_xk
+ssh user huawei_xk authentication-type password
+ssh user huawei_xk service-type stelnet
+ssh user nmread
+ssh user nmread authentication-type all
+ssh user nmread service-type stelnet
+ssh user qxnm
+ssh user qxnm authentication-type all
+ssh user qxnm service-type stelnet
+#
+command-privilege level 1 view shell display current-configuration
+command-privilege level 1 view shell display saved-configuration
+#
+sflow collector 1 ip vpn-instance untrust 134.64.117.142 port 6355 description "sFlow Server"
+#
+sflow agent ip vpn-instance untrust 134.95.128.1
+#                                         
+user-interface maximum-vty 15
+user-interface con 0
+ authentication-mode password
+ set authentication password cipher $1c$I`-<%'<-ED$=z-&'W0l<B"|gT~Kbz`W3|qbJGyhu1sYZj9|hxML$
+ idle-timeout 5 0
+user-interface vty 0 14
+ acl 2000 inbound
+ authentication-mode aaa
+ user privilege level 3
+ idle-timeout 30 0
+user-interface vty 16 20
+#
+dot1x-access-profile name dot1x_access_profile
+#
+mac-access-profile name mac_access_profile
+#
+return
+<TDL-JF-9310-1>    
