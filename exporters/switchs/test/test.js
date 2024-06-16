@@ -65,5 +65,5 @@ async function readH3Ospf() {
 }
 
 
-readH3Ospf();
+readHuaweiArp();
 

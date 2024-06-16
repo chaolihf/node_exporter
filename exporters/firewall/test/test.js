@@ -12,5 +12,15 @@ async function readHuaweiConf() {
     }
   }
 
-readHuaweiConf();
+  async function readH3Conf() {
+    try {
+      var data = await fs.promises.readFile('node_exporter/exporters/firewall/test/h3-configuration.txt', 'utf8');
+      var tableData=h3Parser.getConfInfo(data);
+      console.log(tableData)
+    } catch (err) {
+      console.error('Error reading file:', err);
+    }
+  }
+
+  readH3Conf();
 
