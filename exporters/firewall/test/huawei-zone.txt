@@ -1,0 +1,88 @@
+display zone
+2024-06-09 13:39:00.798 +08:00
+local
+ priority is 100
+ interface of the zone is (0):
+#
+trust
+ priority is 85
+ interface of the zone is (2):
+    Eth-Trunk1.520
+    GigabitEthernet0/0/0
+#
+untrust
+ priority is 5
+ interface of the zone is (9):
+    Eth-Trunk1.730
+    Eth-Trunk1.732
+    GigabitEthernet1/0/0
+    GigabitEthernet1/0/8
+    GigabitEthernet2/0/0.522
+    GigabitEthernet3/0/0
+    GigabitEthernet3/0/8
+    GigabitEthernet5/0/8.519
+    GigabitEthernet7/0/8
+#
+dmz
+ priority is 50
+ interface of the zone is (0):
+#
+hrp
+ priority is 90
+ interface of the zone is (1):
+    Eth-Trunk0
+#
+NOCKQI
+ priority is 89
+ interface of the zone is (1):
+    GigabitEthernet5/0/1
+#
+BIGDATA
+ priority is 92
+ interface of the zone is (1):
+    Eth-Trunk1.524
+#
+WZYY
+ priority is 88
+ interface of the zone is (0):
+#
+TEST
+ priority is 91
+ interface of the zone is (1):
+    Eth-Trunk1.759
+#
+ADG
+ priority is 93
+ interface of the zone is (1):
+    Eth-Trunk1.523
+#
+ZYC
+ priority is 87
+ interface of the zone is (1):
+    Eth-Trunk1.551
+#
+4g
+ priority is 86
+ interface of the zone is (0):
+#
+NOC_GanZhi
+ description NOC感知平台
+ priority is 51
+ interface of the zone is (1):
+    Eth-Trunk1.528
+#
+wxwy
+ priority is 52
+ interface of the zone is (1):
+    GigabitEthernet1/0/1
+#
+3G_Query
+ priority is 53
+ interface of the zone is (1):
+    Eth-Trunk1.890
+#
+EDA
+ priority is 84
+ interface of the zone is (1):
+    Eth-Trunk1.911
+#
