@@ -1,8 +1,0 @@
-display vrrp 
-IPv4 Virtual Router Information:  
- Running mode : Standard
- Total number of virtual routers : 1
- Interface          VRID  State        Running Adver   Auth     Virtual
-                                       Pri     Timer   Type        IP
- ---------------------------------------------------------------------
- Vlan100            1     Backup       100     100     None     134.95.133.193  
