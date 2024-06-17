@@ -1,4 +1,4 @@
-package switchs
+package firewall
 
 import (
 	"encoding/json"
@@ -20,7 +20,7 @@ import (
 
 var logger log.Logger
 
-type switchCollector struct {
+type firewallCollector struct {
 	TargetName string
 }
 
@@ -48,11 +48,11 @@ var exporterInfo ExporterConfig
 var isScriptInited = false
 var switchLogger *zap.Logger
 
-func (collector *switchCollector) Describe(ch chan<- *prometheus.Desc) {
+func (collector *firewallCollector) Describe(ch chan<- *prometheus.Desc) {
 
 }
 
-func (collector *switchCollector) Collect(ch chan<- prometheus.Metric) {
+func (collector *firewallCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, switchInfo := range exporterInfo.Switchs {
 		if switchInfo.Name == collector.TargetName {
 			metrics := getScriptResult(switchInfo)
@@ -71,7 +71,7 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 		level.Warn(logger).Log("warning", "missing command steps")
 		return nil
 	}
-	scriptCode, err := utils.ReadStringFromFile(fmt.Sprintf("manufacturer/%s.js", shellInfo.Mode))
+	scriptCode, err := utils.ReadStringFromFile(fmt.Sprintf("manufacturer/firewall-%s.js", shellInfo.Mode))
 	if err != nil {
 		level.Error(logger).Log("err", "read manufacturer script code "+err.Error())
 		return nil
@@ -203,7 +203,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("missing target parameter!"))
 		return
 	}
-	registry.MustRegister(&switchCollector{TargetName: targetName})
+	registry.MustRegister(&firewallCollector{TargetName: targetName})
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
 }
