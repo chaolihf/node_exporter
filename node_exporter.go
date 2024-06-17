@@ -31,6 +31,7 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
+	"github.com/chaolihf/node_exporter/exporters/firewall"
 	"github.com/chaolihf/node_exporter/exporters/hadoop"
 	"github.com/chaolihf/node_exporter/exporters/switchs"
 	jjson "github.com/chaolihf/udpgo/json"
@@ -58,9 +59,10 @@ type handler struct {
 }
 
 var (
-	readTimeout          int  = 10
-	enableHadoopExporter bool = false
-	enableSwitchExporter bool = false
+	readTimeout            int  = 10
+	enableHadoopExporter   bool = false
+	enableSwitchExporter   bool = false
+	enableFirewallExporter bool = false
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -173,6 +175,8 @@ func initReadConfig() error {
 					enableHadoopExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "switch_exporter" {
 					enableSwitchExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "firewall_exporter" {
+					enableFirewallExporter = true
 				}
 			}
 		}
@@ -272,6 +276,12 @@ func Main() {
 			switchs.RequestHandler(w, r)
 		})
 		switchs.SetLogger(logger)
+	}
+	if enableFirewallExporter {
+		http.HandleFunc("/firewallMetrics", func(w http.ResponseWriter, r *http.Request) {
+			firewall.RequestHandler(w, r)
+		})
+		firewall.SetLogger(logger)
 	}
 
 	tlsconf := &tls.Config{

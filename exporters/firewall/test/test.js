@@ -1,6 +1,6 @@
 const fs = require('fs');
-const huaweiParser = require('../manufacturer/huawei.js');
-const h3Parser = require('../manufacturer/h3.js');
+const huaweiParser = require('../manufacturer/firewall-huawei.js');
+const h3Parser = require('../manufacturer/firewall-h3.js');
 
 async function readHuaweiConf() {
     try {
