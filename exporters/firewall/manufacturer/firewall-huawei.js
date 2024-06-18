@@ -69,11 +69,8 @@ function parseRules(data){
         const action=match[3];
         const ruleContent=match[2];
         const ruleItems=parseRule(ruleContent);
-        rules.push({
-            ruleName:ruleName,
-            action:action,
-            ruleItems:ruleItems
-        });
+        rules.push(Object.assign({}, { name:ruleName,
+            action:action}, ruleItems));
     }
     return rules;
 }
@@ -119,11 +116,11 @@ function parseAddressInfo(items){
     if (items[0]=="range"){
         return {type:1,start:items[1],end:items[2]};
     } else if (items[0]=="address-set"){
-        return {type:2,name:items[1]};
-    } else if (items[0]=="domain-set"){
         return {type:3,name:items[1]};
+    } else if (items[0]=="domain-set"){
+        return {type:4,name:items[1]};
     } else if (items[1]=="mask"){
-        return {type:0,address:items[0],mask:items[2],v4:1};
+        return {type:2,address:items[0],mask:items[2],v4:1};
     } else if (items[0].indexOf(":")!=-1){
         return {type:0,address:items[0],mask:items[2],v4:0};
     } else{
@@ -144,7 +141,7 @@ function parseIpAddressSet(data){
                 description=items[1];           
                 break;
             case "address":
-                address.push(items.slice(2))
+                address.push(parseAddressInfo(items.slice(2)))
                 break;
             case "":
                 break;
