@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="Tib7RC66B6ER3Yfyl063" name="配置项类视图">
-        <mxGraphModel dx="2624" dy="816" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="1948" dy="672" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -38,13 +38,16 @@
                     <mxGeometry y="78" width="200" height="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="10" value="zoneSet(安全域)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="1">
-                    <mxGeometry x="592" y="75" width="220" height="78" as="geometry"/>
+                    <mxGeometry x="592" y="75" width="220" height="104" as="geometry"/>
                 </mxCell>
                 <mxCell id="11" value="+ name(名称): string" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="10">
                     <mxGeometry y="26" width="220" height="26" as="geometry"/>
                 </mxCell>
-                <mxCell id="12" value="+ interfaces(端口): string[]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="10">
+                <mxCell id="12" value="+ priority(优先级): int" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="10">
                     <mxGeometry y="52" width="220" height="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="120" value="+ name(名称): string" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="10">
+                    <mxGeometry y="78" width="220" height="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="79" style="edgeStyle=none;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="14" target="75">
                     <mxGeometry relative="1" as="geometry">
@@ -94,7 +97,7 @@
                     <mxGeometry y="30" width="210" height="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="24" value="RangeAddress(地址范围)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="1">
-                    <mxGeometry x="-790" y="520" width="210" height="108" as="geometry"/>
+                    <mxGeometry x="-635" y="520" width="210" height="108" as="geometry"/>
                 </mxCell>
                 <mxCell id="25" value="+ type(类型): int = 1 " style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="24">
                     <mxGeometry y="30" width="210" height="26" as="geometry"/>
@@ -120,7 +123,7 @@
                     <mxGeometry x="1" relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="32" value="HostAddress(主机地址)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="1">
-                    <mxGeometry x="-510" y="520" width="210" height="108" as="geometry"/>
+                    <mxGeometry x="-850" y="520" width="210" height="108" as="geometry"/>
                 </mxCell>
                 <mxCell id="33" value="+ type(类型): int = 0" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="32">
                     <mxGeometry y="30" width="210" height="26" as="geometry"/>
@@ -146,7 +149,7 @@
                     <mxGeometry x="1" relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="39" value="SubnetAddress(子网地址)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="1">
-                    <mxGeometry x="-240" y="520" width="210" height="108" as="geometry"/>
+                    <mxGeometry x="-410" y="520.47" width="210" height="108" as="geometry"/>
                 </mxCell>
                 <mxCell id="40" value="+ type(类型): int = 2" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="39">
                     <mxGeometry y="30" width="210" height="26" as="geometry"/>
@@ -172,7 +175,7 @@
                     <mxGeometry x="1" relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="46" value="GroupAddress(子网地址)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="1">
-                    <mxGeometry x="20" y="520" width="210" height="82" as="geometry"/>
+                    <mxGeometry x="-190" y="520" width="210" height="82" as="geometry"/>
                 </mxCell>
                 <mxCell id="47" value="+ type(类型): int = 3" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="46">
                     <mxGeometry y="30" width="210" height="26" as="geometry"/>
@@ -280,6 +283,41 @@
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="94" value="child" style="edgeLabel;resizable=0;html=1;align=right;verticalAlign=bottom;" connectable="0" vertex="1" parent="92">
+                    <mxGeometry x="1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="108" value="domainSet(域名组）" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="1">
+                    <mxGeometry x="-540" y="930" width="180" height="104" as="geometry"/>
+                </mxCell>
+                <mxCell id="109" value="+ name(名称): string" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="108">
+                    <mxGeometry y="26" width="180" height="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="112" value="+ description(描述): string" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="108">
+                    <mxGeometry y="52" width="180" height="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="113" value="+ domain(域名): string[]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="108">
+                    <mxGeometry y="78" width="180" height="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="114" value="DomainSetAddress(域名组地址)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;" vertex="1" parent="1">
+                    <mxGeometry x="30" y="520.47" width="210" height="82" as="geometry"/>
+                </mxCell>
+                <mxCell id="115" value="+ type(类型): int = 4" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="114">
+                    <mxGeometry y="30" width="210" height="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="116" value="+ name(地址): string" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="114">
+                    <mxGeometry y="56" width="210" height="26" as="geometry"/>
+                </mxCell>
+                <mxCell id="117" value="" style="endArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="19" target="114">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="-220" y="318" as="sourcePoint"/>
+                        <mxPoint x="-75" y="530" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="118" value="parent" style="edgeLabel;resizable=0;html=1;align=left;verticalAlign=bottom;" connectable="0" vertex="1" parent="117">
+                    <mxGeometry x="-1" relative="1" as="geometry">
+                        <mxPoint x="-40" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="119" value="child" style="edgeLabel;resizable=0;html=1;align=right;verticalAlign=bottom;" connectable="0" vertex="1" parent="117">
                     <mxGeometry x="1" relative="1" as="geometry"/>
                 </mxCell>
             </root>
