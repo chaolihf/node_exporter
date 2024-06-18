@@ -9,7 +9,7 @@ function getShellConfig() {
 
 function getConfInfo(data){
     var parts=data.split(/#\s*\r\n/);
-    var addressSet=[],serviceSet=[],zoneSet=[],rules,domains,blacklist;
+    var addressSet=[],serviceSet=[],zoneSet=[],rules,blacklist;
     for(var i=0;i<parts.length;i++){
         var part=parts[i];
         if (part.startsWith("object-group ip")){
@@ -24,7 +24,7 @@ function getConfInfo(data){
             blacklist=parseBlacklist(part);
         } 
     }
-    return {addressSet:addressSet,serviceSet:serviceSet,zoneSet:zoneSet,rules:rules,domains:domains};
+    return {addressSet:addressSet,serviceSet:serviceSet,zoneSet:zoneSet,rules:rules,blacklist:blacklist};
 }
 
 function parseBlacklist(data) {
@@ -42,6 +42,7 @@ function parseBlacklist(data) {
             
         }
     }
+    return blacklist
 }
 
 function parseDomainSet(data){
@@ -115,11 +116,11 @@ function parseRules(data){
                     break;
                 }
                 case "source-ip-subnet":{
-                    sourceAddr.push({type:0,address:fieldPart[1],mask:fieldPart[2],v4:1});
+                    sourceAddr.push({type:2,address:fieldPart[1],mask:fieldPart[2]});
                     break;
                 }
                 case "destination-ip-subnet":{
-                    destAddr.push({type:0,address:fieldPart[1],mask:fieldPart[2],v4:1});
+                    destAddr.push({type:2,address:fieldPart[1],mask:fieldPart[2]});
                     break;
                 }
                 case "source-ip-range":{
@@ -131,19 +132,21 @@ function parseRules(data){
                     break;
                 }
                 case "source-ip-host":{
-                    sourceAddr.push({type:3,address:fieldPart[1],v4:1});
+                    sourceAddr.push({type:0,address:fieldPart[1],v4:1});
                     break;
                 }
                 case "destination-ip-host":{
-                    destAddr.push({type:3,address:fieldPart[1],v4:1});
+                    destAddr.push({type:0,address:fieldPart[1],v4:1});
                     break;
                 }
                 case "service":{
-                    service.push(fieldPart[1]);
+                    service.push({type:0,name:fieldPart[1]});
                     break;
                 }
                 case "service-port":{
-                    service.push(parseServiceItem(fieldPart.slice(1)));
+                    var serviceItem=parseServiceItem(fieldPart.slice(1))
+                    serviceItem.type=1;
+                    service.push(serviceItem);
                     break;
                 }
                 case "counting":
@@ -174,7 +177,7 @@ function parseAddressInfo(items){
     } else if (items[0]=="host"){
         return {type:0,address:items[1],v4: items[2].indexOf(":")==-1?1:0};
     } else if (items[0]=="subnet"){
-        return {type:0,address:items[1],mask:items[2],v4:1};
+        return {type:2,address:items[1],mask:items[2],v4:1};
     } else if (items[0]=="group-object"){
         return {type:3,name:items[1]};
     } else{
