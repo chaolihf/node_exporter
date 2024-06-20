@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="Tib7RC66B6ER3Yfyl063" name="配置项类视图">
-        <mxGraphModel dx="1948" dy="672" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="2197" dy="672" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -319,6 +319,78 @@
                 </mxCell>
                 <mxCell id="119" value="child" style="edgeLabel;resizable=0;html=1;align=right;verticalAlign=bottom;" connectable="0" vertex="1" parent="117">
                     <mxGeometry x="1" relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="yHDpCgrdkeV9x1W24bVx" name="配置项用例视图">
+        <mxGraphModel dx="1774" dy="816" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-5" style="edgeStyle=none;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="ujMeg-AfmPIpJgwnRzpA-16" target="ujMeg-AfmPIpJgwnRzpA-13">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="280" y="690" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-6" style="edgeStyle=none;html=1;" edge="1" parent="1" source="ujMeg-AfmPIpJgwnRzpA-1" target="ujMeg-AfmPIpJgwnRzpA-3">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-7" style="edgeStyle=none;html=1;exitX=0.413;exitY=0.72;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="ujMeg-AfmPIpJgwnRzpA-16" target="ujMeg-AfmPIpJgwnRzpA-14">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="470" y="1283.5999755859375" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-1" value="网络管理员" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="60" y="430" width="30" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-3" value="查找是否有从1个地址到另外一个地址的规则" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="280" y="300" width="210" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-8" value="重复规则筛选&lt;br&gt;（规则完全覆盖、源地址合并、目标地址合并、端口合并等）" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="280" y="430" width="210" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-9" style="edgeStyle=none;html=1;" edge="1" parent="1" source="ujMeg-AfmPIpJgwnRzpA-1" target="ujMeg-AfmPIpJgwnRzpA-8">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="90" y="356.9" as="sourcePoint"/>
+                        <mxPoint x="253.4246169425469" y="432.07532379357156" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-10" value="高危操作提醒&lt;br&gt;（删除规则时结合防火墙流量采集、主机流量采集判断是否有流量并给出提醒）" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="560" width="210" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-11" style="edgeStyle=none;html=1;exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="ujMeg-AfmPIpJgwnRzpA-1" target="ujMeg-AfmPIpJgwnRzpA-10">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="90" y="364.4117647058823" as="sourcePoint"/>
+                        <mxPoint x="287.2258026386944" y="553.9032221430593" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-13" value="查找面向特定网段开放了哪些服务？" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="310" y="890" width="200" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-14" value="结合CMDB查找开放端口是否为高风险端口（22，数据库端口等）" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="320" y="1060" width="210" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-16" value="安全管理员" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="100" y="980" width="30" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-17" value="根据名称等条件查找规则、地址组等基础信息" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="280" y="130" width="210" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-18" style="edgeStyle=none;html=1;exitX=0.52;exitY=0.22;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="ujMeg-AfmPIpJgwnRzpA-1" target="ujMeg-AfmPIpJgwnRzpA-17">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="100" y="464.1935483870968" as="sourcePoint"/>
+                        <mxPoint x="321.3501144302418" y="378.50963312377735" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-19" value="网络路由拓扑展示&lt;br&gt;（给定源地址和目标地址可以展示经过的交换机、路由器）" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="290" y="680" width="210" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="ujMeg-AfmPIpJgwnRzpA-20" style="edgeStyle=none;html=1;" edge="1" parent="1" target="ujMeg-AfmPIpJgwnRzpA-19">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="70" y="460" as="sourcePoint"/>
+                        <mxPoint x="332.66150537219073" y="582.3830894758537" as="targetPoint"/>
+                    </mxGeometry>
                 </mxCell>
             </root>
         </mxGraphModel>
