@@ -1,8 +1,8 @@
 package javascript
 
 import (
+	"github.com/chaolihf/goja"
 	"github.com/chaolihf/udpgo/lang"
-	"github.com/dop251/goja"
 	"go.uber.org/zap"
 )
 
