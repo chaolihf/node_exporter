@@ -5,18 +5,6 @@
             "value":1   
         }
     ],
-    "IgnoreConditions":[
-            [
-                {
-                    "key": "name",
-                    "value":"Hadoop:service=NameNode,name=FSNamesystem"
-                },
-                {
-                    "key": "modelerType",
-                    "value":"FSNamesystem"
-                }
-            ]
-    ],
     "metrics": [
         {
             "name": "Hadoop_NameNode_NN_FilesTotal"
@@ -34,10 +22,34 @@
             "name": "Hadoop_NameNode_NN_FSState"
         },
         {
-            "name": "Hadoop_NameNode_NN_NumDeadDataNodes"
+            "name": "Hadoop_NameNode_NN_NumDeadDataNodes",
+            "Conditions":[
+                [
+                    {
+                        "key": "name",
+                        "value":"Hadoop:service=NameNode,name=FSNamesystemState"
+                    },
+                    {
+                        "key": "modelerType",
+                        "value":"org.apache.hadoop.hdfs.server.namenode.FSNamesystem"
+                    }
+                ]
+            ]
         },
         {
-            "name": "Hadoop_NameNode_NN_NumLiveDataNodes"
+            "name": "Hadoop_NameNode_NN_NumLiveDataNodes",
+            "Conditions":[
+                [
+                    {
+                        "key": "name",
+                        "value":"Hadoop:service=NameNode,name=FSNamesystemState"
+                    },
+                    {
+                        "key": "modelerType",
+                        "value":"org.apache.hadoop.hdfs.server.namenode.FSNamesystem"
+                    }
+                ]
+            ]
         },
         {
             "name": "Hadoop_NameNode_NN_GcTimeMillis"

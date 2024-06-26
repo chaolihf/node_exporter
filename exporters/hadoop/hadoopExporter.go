@@ -19,14 +19,13 @@ import (
 )
 
 type ExporterConfig struct {
-	ListenAddress    string              `json:"listen"`
-	Codes            []CodeMap           `json:"codeMaps"`
-	Metrics          []MetricType        `json:"metrics"`
-	TargetServers    []TargetServer      `json:"servers"`
-	IgnoreConditions [][]IgnoreCondition `json:"IgnoreConditions"`
+	ListenAddress string         `json:"listen"`
+	Codes         []CodeMap      `json:"codeMaps"`
+	Metrics       []MetricType   `json:"metrics"`
+	TargetServers []TargetServer `json:"servers"`
 }
 
-type IgnoreCondition struct {
+type Condition struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
@@ -37,7 +36,8 @@ type CodeMap struct {
 }
 
 type MetricType struct {
-	Name string `json:"name"`
+	Name       string        `json:"name"`
+	Conditions [][]Condition `json:"Conditions"`
 }
 
 type TargetServer struct {
@@ -90,9 +90,6 @@ func ParseContent(content []byte, modulePrefix string, isShowAll bool) []prometh
 	for _, beanInfo := range beanInfos {
 		beanName := beanInfo.GetString("name")
 		if strings.HasPrefix(beanName, "Hadoop:") {
-			if !isValidBean(beanInfo) {
-				continue
-			}
 			handler := handlerMap[beanName]
 			if handler == nil {
 				handler = getBeanMetrics
@@ -101,22 +98,6 @@ func ParseContent(content []byte, modulePrefix string, isShowAll bool) []prometh
 		}
 	}
 	return metrics
-}
-
-func isValidBean(beanInfo *jjson.JsonObject) bool {
-	for _, IgnoreCondition := range exporterInfo.IgnoreConditions {
-		isMatch := true
-		for _, ignoreItem := range IgnoreCondition {
-			if beanInfo.GetString(ignoreItem.Key) != ignoreItem.Value {
-				isMatch = false
-				break
-			}
-		}
-		if isMatch {
-			return false
-		}
-	}
-	return true
 }
 
 // @title
@@ -232,12 +213,14 @@ func getBeanMetrics(beanInfo *jjson.JsonObject, keySet map[string][]string, modu
 	for _, key := range beanInfo.GetKeys() {
 		if key != "name" && key != "modelerType" && !strings.HasPrefix(key, "tag.") {
 			metricName := renameMetricName(keySet, metrixPerfix+"_"+key, tagString)
-			if isShowAll || isInExportList(metricName) {
+			if isShowAll || isInExportList(beanInfo, metricName) {
 				value := getAttributeValue(beanInfo.Attributes[key])
 				name := strings.ReplaceAll(beanInfo.Attributes["name"].Value.(string), "\"", "")
 				hadoopMetric := prometheus.NewDesc(metricName, fmt.Sprintf("bean path=>%s=>%s", name, key), nil, tags)
 				metric := prometheus.MustNewConstMetric(hadoopMetric, prometheus.CounterValue, value)
 				metrics = append(metrics, metric)
+			} else if !isShowAll {
+				delete(keySet, strings.ToLower(metricName))
 			}
 		}
 	}
@@ -272,12 +255,14 @@ func handlerRegionServerRegions(beanInfo *jjson.JsonObject, keySet map[string][]
 					}
 				}
 				metricName := renameMetricName(keySet, metrixPerfix+"_"+key[metricIndex+8:], metriTag)
-				if isShowAll || isInExportList(metricName) {
+				if isShowAll || isInExportList(beanInfo, metricName) {
 					value := getAttributeValue(beanInfo.Attributes[key])
 					name := strings.ReplaceAll(beanInfo.Attributes["name"].Value.(string), "\"", "")
 					hadoopMetric := prometheus.NewDesc(metricName, fmt.Sprintf("bean path=>%s=>%s", name, key), nil, tags)
 					metric := prometheus.MustNewConstMetric(hadoopMetric, prometheus.CounterValue, value)
 					metrics = append(metrics, metric)
+				} else if !isShowAll {
+					delete(keySet, strings.ToLower(metricName))
 				}
 				delete(tags, "tableName")
 				delete(tags, "tableId")
@@ -287,11 +272,27 @@ func handlerRegionServerRegions(beanInfo *jjson.JsonObject, keySet map[string][]
 	return metrics
 }
 
-func isInExportList(metricName string) bool {
+func isInExportList(beanInfo *jjson.JsonObject, metricName string) bool {
 	if exporterInfo.Metrics != nil {
 		for _, metricType := range exporterInfo.Metrics {
 			if metricName == metricType.Name {
-				return true
+				if metricType.Conditions != nil {
+					isMatch := true
+					for _, condition := range metricType.Conditions {
+						for _, matchItem := range condition {
+							if beanInfo.GetString(matchItem.Key) != matchItem.Value {
+								isMatch = false
+								break
+							}
+						}
+						if !isMatch {
+							break
+						}
+					}
+					return isMatch
+				} else {
+					return true
+				}
 			}
 		}
 		return false
