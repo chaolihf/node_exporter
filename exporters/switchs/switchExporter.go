@@ -84,10 +84,12 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 	}
 	moreCommand, clearLine, err := getShellConfig(runner)
 	if err != nil {
+		level.Error(logger).Log("err", "get shell config "+err.Error())
 		return nil
 	}
 	connection := sshclient.NewSSHConnection(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
 	if connection == nil {
+		level.Error(logger).Log("err", "can't connect to "+shellInfo.Host)
 		return nil
 	}
 	defer connection.CloseConnection()
@@ -191,6 +193,7 @@ func init() {
 func SetLogger(globalLogger log.Logger) {
 	if !isScriptInited {
 		logger = globalLogger
+		sshclient.SetLogger(globalLogger)
 		isScriptInited = true
 	}
 }

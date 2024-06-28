@@ -37,6 +37,8 @@
             "user":"",
             "password":"",
             "mode":"h3",
+            "prompt":"<TDL_3FK5_6900>",
+            "shell":"1",
             "steps":[
                 {
                     "command":"display arp",
