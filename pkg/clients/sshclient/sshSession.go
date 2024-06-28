@@ -9,8 +9,11 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/bramvdbogaerde/go-scp"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -26,6 +29,12 @@ type SSHSession struct {
 	stdoutPipe io.Reader
 }
 
+var logger log.Logger
+
+func SetLogger(globalLogger log.Logger) {
+	logger = globalLogger
+}
+
 func NewSSHConnection(hostNameAndPort string, userName string, password string, timeout int) *SSHConnection {
 	config := &ssh.ClientConfig{
 		User: userName,
@@ -33,9 +42,11 @@ func NewSSHConnection(hostNameAndPort string, userName string, password string, 
 			ssh.Password(password),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         time.Duration(timeout) * time.Second,
 	}
 	client, err := ssh.Dial("tcp", hostNameAndPort, config)
 	if err != nil {
+		level.Error(logger).Log("err", fmt.Sprintf("fail to connect %s,err:%s", hostNameAndPort, err.Error()))
 		return nil
 	}
 	return &SSHConnection{
@@ -207,7 +218,7 @@ func (thisSession *SSHSession) DownloadFile(remoteFilePath string, localFilePath
 	} else {
 		localFile, err := os.Open(localFilePath)
 		if err != nil {
-			fmt.Println("Error opening local file", err)
+			level.Error(logger).Log("err", "Error opening local file"+err.Error())
 			return
 		}
 		client.CopyFromRemote(nil, localFile, remoteFilePath)
