@@ -1,0 +1,18 @@
+{
+    "firewalls":[
+        {
+            "name": "",
+            "host":"",
+            "user":"",
+            "password":"",
+            "mode":"huawei",
+            "prompt":"",
+            "steps":[
+                {
+                    "command":"display current-configuration",
+                    "scriptFunction":"getConfInfo"
+                }
+            ]
+        }
+    ]
+}
