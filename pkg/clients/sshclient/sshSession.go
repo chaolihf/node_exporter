@@ -16,6 +16,9 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 type SSHConnection struct {
@@ -27,6 +30,7 @@ type SSHSession struct {
 	session    *ssh.Session
 	stdinPipe  io.WriteCloser
 	stdoutPipe io.Reader
+	decoder    *encoding.Decoder
 }
 
 var logger log.Logger
@@ -54,14 +58,23 @@ func NewSSHConnection(hostNameAndPort string, userName string, password string, 
 	}
 }
 
-func (thisConnection *SSHConnection) NewSession() *SSHSession {
+func (thisConnection *SSHConnection) NewSession(encoder string) *SSHSession {
 	session, err := thisConnection.client.NewSession()
 	if err != nil {
 		return nil
 	}
+	var decoder *encoding.Decoder
+	switch strings.ToLower(encoder) {
+	case "gbk":
+	case "gb2312":
+		decoder = simplifiedchinese.GBK.NewDecoder()
+	case "GB18030":
+		decoder = simplifiedchinese.GB18030.NewDecoder()
+	}
 	return &SSHSession{
 		session: session,
 		client:  thisConnection,
+		decoder: decoder,
 	}
 }
 
@@ -155,11 +168,19 @@ func (thisSession *SSHSession) GetShellCommandResult(prompt string,
 			}
 		}
 		output.Write(buf[:n])
-		bufferContent := output.String()
+		var bufferContent string
+		if thisSession.decoder != nil {
+			bufferContent, err = TranslateContent(output, thisSession.decoder)
+			if err != nil {
+				level.Error(logger).Log("err", "Error translate content "+err.Error())
+				return ""
+			}
+		} else {
+			bufferContent = output.String()
+		}
 		if len(moreCommand) > 0 && strings.Contains(bufferContent, moreCommand) {
 			result = result + strings.Replace(bufferContent, moreCommand, "", 1)
 			fmt.Fprintf(stdin, " ")
-			//time.Sleep(100 * time.Millisecond)
 			output.Reset()
 		} else {
 			firstIndex := strings.Index(bufferContent, prompt)
@@ -173,6 +194,28 @@ func (thisSession *SSHSession) GetShellCommandResult(prompt string,
 		result = strings.ReplaceAll(result, clearLine, "")
 	}
 	return result
+}
+
+// TranslateContent 使用给定的解码器将字节缓冲区中的内容转换为UTF-8编码的字符串。
+// 这个函数接受一个字节缓冲区和一个解码器作为输入，解码器用于将特定编码的字节序列转换为UTF-8。
+// 函数返回转换后的UTF-8字符串以及可能出现的错误。
+//
+// 参数:
+//
+//	output: 一个bytes.Buffer类型的实例，包含需要转换的字节序列。
+//	decoder: 一个*encoding.Decoder类型的指针，用于将字节序列解码为UTF-8。
+//
+// 返回值:
+//
+//	string: 转换后的UTF-8编码字符串。
+//	error: 如果在读取或转换过程中发生错误，则返回该错误；否则返回nil。
+func TranslateContent(output bytes.Buffer, decoder *encoding.Decoder) (string, error) {
+	reader := transform.NewReader(bytes.NewReader(output.Bytes()), decoder)
+	utfData, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(utfData), nil
 }
 
 func (thisSession *SSHSession) ExecuteSingleCommand(command string) (string, error) {
