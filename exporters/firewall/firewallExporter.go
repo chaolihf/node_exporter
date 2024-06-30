@@ -6,6 +6,7 @@ import (
 	"fmt"
 	stdlog "log"
 	"net/http"
+	"os"
 
 	"github.com/chaolihf/node_exporter/pkg/clients/sshclient"
 	"github.com/chaolihf/node_exporter/pkg/javascript"
@@ -82,7 +83,7 @@ func getFirewallConfig(shellInfo ShellConfig) (string, error) {
 		return "", err
 	}
 	defer connection.CloseConnection()
-	session := connection.NewSession("")
+	session := connection.NewSession("gbk")
 	defer session.CloseSession()
 	content, err := session.ExecuteShellCommand(shellInfo.Steps[0].Command,
 		moreCommand, shellInfo.Prompt, clearLine)
@@ -90,6 +91,15 @@ func getFirewallConfig(shellInfo ShellConfig) (string, error) {
 		return "", err
 	}
 	firewallLogger.Info(content)
+	file, err := os.Create("output.txt")
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
+	file.WriteString(content)
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
+	file.Close()
 	return runScript(runner, shellInfo.Steps[0].ScriptFunction, content)
 }
 

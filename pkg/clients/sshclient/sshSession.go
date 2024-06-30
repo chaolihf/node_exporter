@@ -65,8 +65,7 @@ func (thisConnection *SSHConnection) NewSession(encoder string) *SSHSession {
 	}
 	var decoder *encoding.Decoder
 	switch strings.ToLower(encoder) {
-	case "gbk":
-	case "gb2312":
+	case "gbk", "gb2312":
 		decoder = simplifiedchinese.GBK.NewDecoder()
 	case "GB18030":
 		decoder = simplifiedchinese.GB18030.NewDecoder()
