@@ -8,7 +8,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/beevik/ntp v1.3.0
 	github.com/chaolihf/gopsutil v0.0.4
-	github.com/chaolihf/udpgo v0.0.13
+	github.com/chaolihf/udpgo v0.0.14
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/dennwc/btrfs v0.0.0-20230312211831-a1f570bd01a1
 	github.com/ema/qdisc v1.0.0
