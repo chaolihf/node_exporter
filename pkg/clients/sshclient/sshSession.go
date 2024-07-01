@@ -153,63 +153,68 @@ func (thisSession *SSHSession) SendShellCommand(command string) error {
 
 func (thisSession *SSHSession) GetShellCommandResult(prompt string,
 	moreCommand string, clearLine string) string {
-	var result string
+	var result []byte
 	buf := make([]byte, 1024)
 	var output bytes.Buffer
 	stdin := thisSession.stdinPipe
 	stdout := thisSession.stdoutPipe
+	bytePrompt := []byte(prompt)
+	byteMoreCommand := []byte(moreCommand)
+	byteClearLine := []byte(clearLine)
 	for {
 		n, err := stdout.Read(buf)
 		if err != nil {
 			if err == io.EOF {
-				result = strings.Replace(output.String(), prompt, "", 1)
+				result = bytes.ReplaceAll(result, bytePrompt, nil)
 				break
 			}
 		}
 		output.Write(buf[:n])
-		var bufferContent string
-		if thisSession.decoder != nil {
-			bufferContent, err = TranslateContent(output, thisSession.decoder)
-			if err != nil {
-				level.Error(logger).Log("err", "Error translate content "+err.Error())
-				return ""
-			}
-		} else {
-			bufferContent = output.String()
-		}
-		if len(moreCommand) > 0 && strings.Contains(bufferContent, moreCommand) {
-			result = result + strings.Replace(bufferContent, moreCommand, "", 1)
+		bufferContent := output.Bytes()
+		if len(moreCommand) > 0 && bytes.Contains(bufferContent, byteMoreCommand) {
+			result = append(result, bytes.Replace(bufferContent, byteMoreCommand, nil, 1)...)
 			fmt.Fprintf(stdin, " ")
 			output.Reset()
 		} else {
-			firstIndex := strings.Index(bufferContent, prompt)
+			firstIndex := bytes.Index(bufferContent, bytePrompt)
 			if firstIndex != -1 {
-				result = result + strings.Replace(bufferContent, prompt, "", 1)
+				result = append(result, bytes.Replace(bufferContent, bytePrompt, nil, 1)...)
 				break
 			}
 		}
 	}
 	if len(clearLine) > 0 {
-		result = strings.ReplaceAll(result, clearLine, "")
+		result = bytes.ReplaceAll(result, byteClearLine, nil)
 	}
-	return result
+	if thisSession.decoder != nil {
+		stringResult, err := TranslateContent(result, thisSession.decoder)
+		if err != nil {
+			level.Error(logger).Log("err", "Error translate content "+err.Error())
+			return ""
+		} else {
+			return stringResult
+		}
+	} else {
+		return string(result)
+	}
+
 }
 
 // TranslateContent 使用给定的解码器将字节缓冲区中的内容转换为UTF-8编码的字符串。
-// 这个函数接受一个字节缓冲区和一个解码器作为输入，解码器用于将特定编码的字节序列转换为UTF-8。
+// 这个函数接受一个字节数组和一个解码器作为输入，解码器用于将特定编码的字节数组转换为UTF-8。
 // 函数返回转换后的UTF-8字符串以及可能出现的错误。
 //
 // 参数:
 //
-//	output: 一个bytes.Buffer类型的实例，包含需要转换的字节序列。
-//	decoder: 一个*encoding.Decoder类型的指针，用于将字节序列解码为UTF-8。
+//	output: 一个[]byte类型的实例，包含需要转换的字节数组。
+//	decoder: 一个*encoding.Decoder类型的指针，用于将字节数组解码为UTF-8。
 //
 // 返回值:
 //
 //	string: 转换后的UTF-8编码字符串。
 //	error: 如果在读取或转换过程中发生错误，则返回该错误；否则返回nil。
-func TranslateContent(output bytes.Buffer, decoder *encoding.Decoder) (string, error) {
-	reader := transform.NewReader(bytes.NewReader(output.Bytes()), decoder)
+func TranslateContent(content []byte, decoder *encoding.Decoder) (string, error) {
+	reader := transform.NewReader(bytes.NewReader(content), decoder)
 	utfData, err := io.ReadAll(reader)
 	if err != nil {
 		return "", err
