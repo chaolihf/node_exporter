@@ -16,6 +16,8 @@ github.com/chaolihf/gopsutil v0.0.4 h1:QBMr1cX/joudsmp+lDAHCUGFjweMwNRgfhZ5ksWGo
 github.com/chaolihf/gopsutil v0.0.4/go.mod h1:K+quN882FmO3Vb04D3GtEnA7zTa533NzndJebJWSQIs=
 github.com/chaolihf/udpgo v0.0.13 h1:PffwmW49o/WxbYD4j1T3cw7niCmMm2GzRW1gLdIWJsU=
 github.com/chaolihf/udpgo v0.0.13/go.mod h1:+MgC8ewxYznU81AmQqGz7Xp5X1M27AJEN4WKjBM9kkw=
+github.com/chaolihf/udpgo v0.0.14 h1:EBLV4JVMQOSvo6/MHjmXxgHDvWcObrn0tnlatIac+gQ=
+github.com/chaolihf/udpgo v0.0.14/go.mod h1:+MgC8ewxYznU81AmQqGz7Xp5X1M27AJEN4WKjBM9kkw=
 github.com/chzyer/logex v1.2.0/go.mod h1:9+9sk7u7pGNWYMkh0hdiL++6OeibzJccyQU4p4MedaY=
 github.com/chzyer/readline v1.5.0/go.mod h1:x22KAscuvRqlLoK9CsoYsmxoXZMMFVyOl86cAH8qUic=
 github.com/chzyer/test v0.0.0-20210722231415-061457976a23/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=

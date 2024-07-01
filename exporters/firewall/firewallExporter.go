@@ -1,3 +1,6 @@
+/*
+firewall exporter
+*/
 package firewall
 
 import (
@@ -6,21 +9,25 @@ import (
 	"fmt"
 	stdlog "log"
 	"net/http"
-	"os"
+	"time"
 
 	"github.com/chaolihf/node_exporter/pkg/clients/sshclient"
 	"github.com/chaolihf/node_exporter/pkg/javascript"
 	"github.com/chaolihf/node_exporter/pkg/utils"
+	loggerExporter "github.com/chaolihf/udpgo/com.chinatelecom.oneops.protocol.logger"
+	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/chaolihf/udpgo/lang"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 var logger log.Logger
 
 type firewallCollector struct {
 	TargetName string
+	Format     string
 }
 
 type StepInfo struct {
@@ -54,11 +61,44 @@ func (collector *firewallCollector) ServeHTTP(w http.ResponseWriter, r *http.Req
 				level.Error(logger).Log("err", "get firewall config "+err.Error())
 				return
 			}
-			w.Write([]byte(configInfo))
+			if collector.Format == "json" {
+				w.Write([]byte(configInfo))
+			} else {
+				content, err := FormatConfigInfo(configInfo)
+				if err != nil {
+					level.Error(logger).Log("err", "format content "+err.Error())
+					return
+				} else {
+					w.Write(content)
+				}
+			}
 			break
 		}
 	}
 
+}
+
+func FormatConfigInfo(configInfo string) ([]byte, error) {
+	jsonConfigInfos, err := jjson.NewJsonObject([]byte(configInfo))
+	if err != nil {
+		return nil, err
+	}
+	loggerDatas := &loggerExporter.LoggerData{}
+	loggerDatas.ReceiveTime = time.Now().UnixMilli()
+	loggerDatas.Collector = "firewall"
+	loggerDatas.MonitorObject = ""
+	loggerDatas.MonitorType = ""
+	loggerDatas.TableData = append(loggerDatas.TableData, convertAddressSetInfo(jsonConfigInfos.GetJsonArray("addressSet")))
+	return proto.Marshal(loggerDatas)
+}
+
+func convertAddressSetInfo(addressSet []*jjson.JsonObject) *loggerExporter.TableData {
+	if addressSet == nil {
+		return nil
+	}
+	traceTableData := &loggerExporter.TableData{}
+
+	return traceTableData
 }
 
 func getFirewallConfig(shellInfo ShellConfig) (string, error) {
@@ -91,15 +131,15 @@ func getFirewallConfig(shellInfo ShellConfig) (string, error) {
 		return "", err
 	}
 	firewallLogger.Info(content)
-	file, err := os.Create("output.txt")
-	if err != nil {
-		fmt.Println("Error:", err)
-	}
-	file.WriteString(content)
-	if err != nil {
-		fmt.Println("Error:", err)
-	}
-	file.Close()
+	// file, err := os.Create("output.txt")
+	// if err != nil {
+	// 	fmt.Println("Error:", err)
+	// }
+	// file.WriteString(content)
+	// if err != nil {
+	// 	fmt.Println("Error:", err)
+	// }
+	// file.Close()
 	return runScript(runner, shellInfo.Steps[0].ScriptFunction, content)
 }
 
@@ -151,6 +191,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("missing target parameter!"))
 		return
 	}
-	collector := &firewallCollector{TargetName: targetName}
+	format := params.Get("format")
+	if format == "" {
+		format = "table"
+	}
+	collector := &firewallCollector{TargetName: targetName, Format: format}
 	collector.ServeHTTP(w, r)
 }
