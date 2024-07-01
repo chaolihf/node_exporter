@@ -26,9 +26,9 @@ create table firewall_address_detail(
     id_type int ,
     address_detail_id varchar(50),
     address_type int,
-    address varchar(50),
+    address inet,
     v4 int,
-    end_address varchar(50),
+    end_address inet,
     mask int,
     name varchar(200)
 );
