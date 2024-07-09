@@ -7,7 +7,6 @@ package icmp
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"runtime"
@@ -198,7 +197,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 		})
 	)
 
-	logger := thisPlugin.logger
+	//logger := thisPlugin.logger
 
 	ctx, _ := context.WithDeadline(context.Background(),
 		time.Now().Add(time.Duration(thisPlugin.Deadline)*time.Second))
@@ -209,10 +208,10 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 
 	registry.MustRegister(durationGaugeVec)
 
-	dstIPAddr, lookupTime, err := chooseProtocol(ctx, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, registry, logger)
+	dstIPAddr, lookupTime, err := chooseProtocol(ctx, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, registry)
 
 	if err != nil {
-		logger.Error(fmt.Sprint("msg", "Error resolving address", err))
+		//logger.Error(fmt.Sprint("msg", "Error resolving address", err))
 		return false
 	}
 	durationGaugeVec.WithLabelValues("resolve").Add(lookupTime)
@@ -220,14 +219,14 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 	var srcIP net.IP
 	if len(thisPlugin.sourceIPAddress) > 0 {
 		if srcIP = net.ParseIP(thisPlugin.sourceIPAddress); srcIP == nil {
-			logger.Error(fmt.Sprint("msg", "Error parsing source ip address", "srcIP", thisPlugin.sourceIPAddress))
+			//logger.Error(fmt.Sprint("msg", "Error parsing source ip address", "srcIP", thisPlugin.sourceIPAddress))
 			return false
 		}
-		logger.Info(fmt.Sprint("msg", "Using source address", "srcIP", srcIP))
+		//logger.Info(fmt.Sprint("msg", "Using source address", "srcIP", srcIP))
 	}
 
 	setupStart := time.Now()
-	logger.Info(fmt.Sprint("msg", "Creating socket"))
+	//logger.Info(fmt.Sprint("msg", "Creating socket"))
 
 	privileged := true
 	// Unprivileged sockets are supported on Darwin and Linux only.
@@ -245,7 +244,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 			// "udp" here means unprivileged -- not the protocol "udp".
 			icmpConn, err = icmp.ListenPacket("udp6", srcIP.String())
 			if err != nil {
-				logger.Debug(fmt.Sprint("msg", "Unable to do unprivileged listen on socket, will attempt privileged", "err", err))
+				//logger.Debug(fmt.Sprint("msg", "Unable to do unprivileged listen on socket, will attempt privileged", "err", err))
 			} else {
 				privileged = false
 			}
@@ -254,14 +253,14 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 		if privileged {
 			icmpConn, err = icmp.ListenPacket("ip6:ipv6-icmp", srcIP.String())
 			if err != nil {
-				logger.Error(fmt.Sprint("msg", "Error listening to socket", "err", err))
+				//logger.Error(fmt.Sprint("msg", "Error listening to socket", "err", err))
 				return
 			}
 		}
 		defer icmpConn.Close()
 
 		if err := icmpConn.IPv6PacketConn().SetControlMessage(ipv6.FlagHopLimit, true); err != nil {
-			logger.Error(fmt.Sprint("msg", "Failed to set Control Message for retrieving Hop Limit", "err", err))
+			//logger.Error(fmt.Sprint("msg", "Failed to set Control Message for retrieving Hop Limit", "err", err))
 			hopLimitFlagSet = false
 		}
 	} else {
@@ -277,27 +276,27 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 			// sockets as it is not possible to set IP header level options.
 			netConn, err := net.ListenPacket("ip4:icmp", srcIP.String())
 			if err != nil {
-				logger.Error(fmt.Sprint("msg", "Error listening to socket", "err", err))
+				//logger.Error(fmt.Sprint("msg", "Error listening to socket", "err", err))
 				return
 			}
 			defer netConn.Close()
 
 			v4RawConn, err = ipv4.NewRawConn(netConn)
 			if err != nil {
-				logger.Error(fmt.Sprint("msg", "Error creating raw connection", "err", err))
+				//logger.Error(fmt.Sprint("msg", "Error creating raw connection", "err", err))
 				return
 			}
 			defer v4RawConn.Close()
 
 			if err := v4RawConn.SetControlMessage(ipv4.FlagTTL, true); err != nil {
-				logger.Error(fmt.Sprint("msg", "Failed to set Control Message for retrieving TTL", "err", err))
+				//logger.Error(fmt.Sprint("msg", "Failed to set Control Message for retrieving TTL", "err", err))
 				hopLimitFlagSet = false
 			}
 		} else {
 			if tryUnprivileged {
 				icmpConn, err = icmp.ListenPacket("udp4", srcIP.String())
 				if err != nil {
-					logger.Debug(fmt.Sprint("msg", "Unable to do unprivileged listen on socket, will attempt privileged", "err", err))
+					//logger.Debug(fmt.Sprint("msg", "Unable to do unprivileged listen on socket, will attempt privileged", "err", err))
 				} else {
 					privileged = false
 				}
@@ -306,14 +305,14 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 			if privileged {
 				icmpConn, err = icmp.ListenPacket("ip4:icmp", srcIP.String())
 				if err != nil {
-					logger.Error(fmt.Sprint("msg", "Error listening to socket", "err", err))
+					//logger.Error(fmt.Sprint("msg", "Error listening to socket", "err", err))
 					return
 				}
 			}
 			defer icmpConn.Close()
 
 			if err := icmpConn.IPv4PacketConn().SetControlMessage(ipv4.FlagTTL, true); err != nil {
-				logger.Debug(fmt.Sprint("msg", "Failed to set Control Message for retrieving TTL", "err", err))
+				//logger.Debug(fmt.Sprint("msg", "Failed to set Control Message for retrieving TTL", "err", err))
 				hopLimitFlagSet = false
 			}
 		}
@@ -337,7 +336,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 		Seq:  int(getICMPSequence()),
 		Data: data,
 	}
-	logger.Info(fmt.Sprint("msg", "Creating ICMP packet", "seq", body.Seq, "id", body.ID))
+	//logger.Info(fmt.Sprint("msg", "Creating ICMP packet", "seq", body.Seq, "id", body.ID))
 	wm := icmp.Message{
 		Type: requestType,
 		Code: 0,
@@ -346,23 +345,23 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 
 	wb, err := wm.Marshal(nil)
 	if err != nil {
-		logger.Error(fmt.Sprint("msg", "Error marshalling packet", "err", err))
+		//logger.Error(fmt.Sprint("msg", "Error marshalling packet", "err", err))
 		return
 	}
 
 	durationGaugeVec.WithLabelValues("setup").Add(time.Since(setupStart).Seconds())
-	logger.Info(fmt.Sprint("msg", "Writing out packet"))
+	//logger.Info(fmt.Sprint("msg", "Writing out packet"))
 	rttStart := time.Now()
 
 	if icmpConn != nil {
 		ttl := thisPlugin.TTL
 		if ttl > 0 {
 			if c4 := icmpConn.IPv4PacketConn(); c4 != nil {
-				logger.Debug(fmt.Sprint("msg", "Setting TTL (IPv4 unprivileged)", "ttl", ttl))
+				//logger.Debug(fmt.Sprint("msg", "Setting TTL (IPv4 unprivileged)", "ttl", ttl))
 				c4.SetTTL(ttl)
 			}
 			if c6 := icmpConn.IPv6PacketConn(); c6 != nil {
-				logger.Debug(fmt.Sprint("msg", "Setting TTL (IPv6 unprivileged)", "ttl", ttl))
+				//logger.Debug(fmt.Sprint("msg", "Setting TTL (IPv6 unprivileged)", "ttl", ttl))
 				c6.SetHopLimit(ttl)
 			}
 		}
@@ -370,7 +369,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 	} else {
 		ttl := DefaultICMPTTL
 		if thisPlugin.TTL > 0 {
-			logger.Debug(fmt.Sprint("msg", "Overriding TTL (raw IPv4)", "ttl", ttl))
+			//logger.Debug(fmt.Sprint("msg", "Overriding TTL (raw IPv4)", "ttl", ttl))
 			ttl = thisPlugin.TTL
 		}
 		// Only for IPv4 raw. Needed for setting DontFragment flag.
@@ -389,7 +388,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 		err = v4RawConn.WriteTo(header, wb, nil)
 	}
 	if err != nil {
-		logger.Warn(fmt.Sprint("msg", "Error writing to socket", "err", err))
+		//logger.Warn(fmt.Sprint("msg", "Error writing to socket", "err", err))
 		return
 	}
 
@@ -403,7 +402,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 	}
 	wb, err = wm.Marshal(nil)
 	if err != nil {
-		logger.Error(fmt.Sprint("msg", "Error marshalling packet", "err", err))
+		//logger.Error(fmt.Sprint("msg", "Error marshalling packet", "err", err))
 		return
 	}
 
@@ -422,10 +421,10 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 		err = v4RawConn.SetReadDeadline(deadline)
 	}
 	if err != nil {
-		logger.Error(fmt.Sprint("msg", "Error setting socket deadline", "err", err))
+		//logger.Error(fmt.Sprint("msg", "Error setting socket deadline", "err", err))
 		return
 	}
-	logger.Info(fmt.Sprint("msg", "Waiting for reply packets"))
+	//logger.Info(fmt.Sprint("msg", "Waiting for reply packets"))
 	for {
 		var n int
 		var peer net.Addr
@@ -439,7 +438,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 			if cm != nil && hopLimitFlagSet {
 				hopLimit = float64(cm.HopLimit)
 			} else {
-				logger.Debug(fmt.Sprint("msg", "Cannot get Hop Limit from the received packet. 'probe_icmp_reply_hop_limit' will be missing."))
+				//logger.Debug(fmt.Sprint("msg", "Cannot get Hop Limit from the received packet. 'probe_icmp_reply_hop_limit' will be missing."))
 			}
 		} else {
 			var cm *ipv4.ControlMessage
@@ -459,15 +458,15 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 				// Not really Hop Limit, but it is in practice.
 				hopLimit = float64(cm.TTL)
 			} else {
-				logger.Debug(fmt.Sprint("msg", "Cannot get TTL from the received packet. 'probe_icmp_reply_hop_limit' will be missing."))
+				//logger.Debug(fmt.Sprint("msg", "Cannot get TTL from the received packet. 'probe_icmp_reply_hop_limit' will be missing."))
 			}
 		}
 		if err != nil {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				logger.Warn(fmt.Sprint("msg", "Timeout reading from socket", "err", err))
+				//logger.Warn(fmt.Sprint("msg", "Timeout reading from socket", "err", err))
 				return
 			}
-			logger.Error(fmt.Sprint("msg", "Error reading from socket", "err", err))
+			//logger.Error(fmt.Sprint("msg", "Error reading from socket", "err", err))
 			continue
 		}
 		if peer.String() != dst.String() {
@@ -490,7 +489,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 				hopLimitGauge.Set(hopLimit)
 				registry.MustRegister(hopLimitGauge)
 			}
-			logger.Info(fmt.Sprint("msg", "Found matching reply packet"))
+			//logger.Info(fmt.Sprint("msg", "Found matching reply packet"))
 			return true
 		}
 	}
