@@ -27,16 +27,6 @@ import (
 
 var logger log.Logger
 
-var exporterInfo ExporterConfig
-
-type ShellConfig struct {
-	IP string `json:"ip"`
-}
-
-type ExporterConfig struct {
-	Icmp []ShellConfig `json:"icmp"`
-}
-
 type icmpCollector struct {
 	TargetName string
 }
@@ -77,16 +67,10 @@ func (collector *icmpCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *icmpCollector) Collect(ch chan<- prometheus.Metric) {
-	for _, icmpInfo := range exporterInfo.Icmp {
-		if icmpInfo.IP == collector.TargetName {
-			metrics := getIcmpResult(icmpInfo)
-			for _, metric := range metrics {
-				ch <- metric
-			}
-			break
-		}
+	metrics := getIcmpResult(collector.TargetName)
+	for _, metric := range metrics {
+		ch <- metric
 	}
-
 }
 
 func getICMPSequence() uint16 {
@@ -119,7 +103,7 @@ func NewICMPScriptPlugin(logger *zap.Logger) *ICMPScriptPlugin {
 }
 
 // 完成网络指标的获取和拼装
-func getIcmpResult(icmpInfo ShellConfig) []prometheus.Metric {
+func getIcmpResult(targetName string) []prometheus.Metric {
 	var metrics []prometheus.Metric
 	var thisPlugin *ICMPScriptPlugin
 	//确定是否探测成功指标
@@ -162,7 +146,7 @@ func getIcmpResult(icmpInfo ShellConfig) []prometheus.Metric {
 		//记录探测开始时间
 		everyStart := time.Now()
 		//若探测不成功发生丢包(探测时将获取到的三个指标放入resistry)
-		if !ProbeICMP(thisPlugin, icmpInfo.IP, registry) {
+		if !ProbeICMP(thisPlugin, targetName, registry) {
 			n++
 		}
 		//记录探测结束时间
