@@ -128,12 +128,6 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 		Name: "probe_max_duration_seconds",
 		Help: "Returns the maximum time for a single probe ",
 	})
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(probeSuccessGauge)
-	registry.MustRegister(probeDurationGauge)
-	registry.MustRegister(probeLossGauge)
-	registry.MustRegister(probeMinDurationGauge)
-	registry.MustRegister(probeMaxDurationGauge)
 	//起始时间
 	start := time.Now()
 	//初始化整型变量n，计算丢包数
@@ -145,7 +139,7 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 		//记录探测开始时间
 		everyStart := time.Now()
 		//若探测不成功发生丢包(探测时将获取到的三个指标放入resistry)
-		if !ProbeICMP(thisPlugin, targetName, registry) {
+		if !ProbeICMP(thisPlugin, targetName, metrics) {
 			n++
 		}
 		//记录探测结束时间
@@ -167,7 +161,11 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 	} else {
 		probeSuccessGauge.Set(0)
 	}
-	metrics = []prometheus.Metric{probeSuccessGauge, probeDurationGauge, probeLossGauge, probeMinDurationGauge, probeMaxDurationGauge}
+	metrics = append(metrics, probeSuccessGauge)
+	metrics = append(metrics, probeDurationGauge)
+	metrics = append(metrics, probeLossGauge)
+	metrics = append(metrics, probeMinDurationGauge)
+	metrics = append(metrics, probeMaxDurationGauge)
 	return metrics
 }
 
@@ -178,7 +176,7 @@ func init() {
 	NewICMPScriptPlugin(logger)
 }
 
-func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus.Registry) (success bool) {
+func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus.Metric) (success bool) {
 	var (
 		requestType     icmp.Type
 		replyType       icmp.Type
@@ -204,11 +202,12 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 
 	for _, lv := range []string{"resolve", "setup", "rtt"} {
 		durationGaugeVec.WithLabelValues(lv)
+		//metrics = append(metrics, durationGaugeVec.WithLabelValues(lv))
 	}
 
-	registry.MustRegister(durationGaugeVec)
+	//registry.MustRegister(durationGaugeVec)
 
-	dstIPAddr, lookupTime, err := chooseProtocol(ctx, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, registry)
+	dstIPAddr, lookupTime, err := chooseProtocol(ctx, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, metrics)
 
 	if err != nil {
 		//logger.Error(fmt.Sprint("msg", "Error resolving address", err))
@@ -487,7 +486,8 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, registry *prometheus
 			durationGaugeVec.WithLabelValues("rtt").Add(time.Since(rttStart).Seconds())
 			if hopLimit >= 0 {
 				hopLimitGauge.Set(hopLimit)
-				registry.MustRegister(hopLimitGauge)
+				//registry.MustRegister(hopLimitGauge)
+				//metrics = append(metrics, hopLimitGauge)
 			}
 			//logger.Info(fmt.Sprint("msg", "Found matching reply packet"))
 			return true
