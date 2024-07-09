@@ -14,7 +14,7 @@ import (
 	"github.com/chaolihf/node_exporter/pkg/clients/sshclient"
 	"github.com/chaolihf/node_exporter/pkg/javascript"
 	"github.com/chaolihf/node_exporter/pkg/utils"
-	le "github.com/chaolihf/udpgo/com.chinatelecom.oneops.protocol.logger"
+	loggerExporter "github.com/chaolihf/udpgo/com.chinatelecom.oneops.protocol.logger"
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/chaolihf/udpgo/lang"
 	"github.com/go-kit/log"
@@ -89,56 +89,87 @@ func FormatConfigInfo(configInfo string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	loggerDatas := &le.LoggerData{}
+	loggerDatas := &loggerExporter.LoggerData{}
 	loggerDatas.ReceiveTime = time.Now().UnixMilli()
 	loggerDatas.Collector = "firewall"
 	loggerDatas.MonitorObject = ""
 	loggerDatas.MonitorType = ""
-	batchId := utils.GetUUID()
-	table_addressSet, table_address := convertAddressSetInfo(batchId, jsonConfigInfos.GetJsonArray("addressSet"))
-
-	loggerDatas.TableData = append(loggerDatas.TableData, table_addressSet, table_address)
+	batchID := utils.GetUUID()
+	tableAddressSet, tableAddress := convertAddressSetInfo(batchID, jsonConfigInfos.GetJsonArray("addressSet"))
+	tableServiceSet, tableService := convertServiceSetInfo(batchID, jsonConfigInfos.GetJsonArray("serviceSet"))
+	tableDomainSet, tableDomain := convertDomainSetInfo(batchID, jsonConfigInfos.GetJsonArray("domainSet"))
+	tableZoneSet, tableZone := convertZoneSetInfo(batchID, jsonConfigInfos.GetJsonArray("zoneSet"))
+	tableBlacklist := convertBlacklistInfo(batchID, jsonConfigInfos.GetJsonArray("blacklist"))
+	loggerDatas.TableData = append(loggerDatas.TableData, tableAddressSet, tableAddress,
+		tableServiceSet, tableService, tableDomainSet, tableDomain, tableZoneSet, tableZone,
+		tableBlacklist)
 	return proto.Marshal(loggerDatas)
 }
 
-func convertAddressSetInfo(batchId string, addressSet []*jjson.JsonObject) (*le.TableData, *le.TableData) {
-	table_addressSet := &le.TableData{
-		TableName: "firewall_addressset",
-		Columns: []*le.ColumnData{
-			&le.ColumnData{ColumnName: "batch_id", ColumnType: 5},
-			&le.ColumnData{ColumnName: "addressset_id", ColumnType: 5},
-			&le.ColumnData{ColumnName: "name", ColumnType: 5},
-			&le.ColumnData{ColumnName: "description", ColumnType: 5},
-			&le.ColumnData{ColumnName: "zone", ColumnType: 5},
+func convertBlacklistInfo(batchID string, blacklist []*jjson.JsonObject) *loggerExporter.TableData {
+	tableBlacklist := &loggerExporter.TableData{
+		TableName: "firewall_blacklist",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "batch_id", ColumnType: 5},
+			{ColumnName: "blacklist_id", ColumnType: 5},
+			{ColumnName: "name", ColumnType: 5},
 		},
 	}
-	table_address := &le.TableData{
+	if blacklist == nil {
+		return tableBlacklist
+	}
+	for _, blacklistItem := range blacklist {
+		tableBlacklist.Rows = append(tableBlacklist.Rows,
+			&loggerExporter.RowValue{
+				FieldValue: []*loggerExporter.FieldValue{
+					{Data: &loggerExporter.FieldValue_S{S: batchID}},
+					{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+					{Data: &loggerExporter.FieldValue_S{S: blacklistItem.GetString("name")}},
+				},
+			},
+		)
+	}
+	return tableBlacklist
+}
+
+func convertAddressSetInfo(batchID string, addressSet []*jjson.JsonObject) (*loggerExporter.TableData, *loggerExporter.TableData) {
+	tableAddressSet := &loggerExporter.TableData{
+		TableName: "firewall_addressset",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "batch_id", ColumnType: 5},
+			{ColumnName: "addressset_id", ColumnType: 5},
+			{ColumnName: "name", ColumnType: 5},
+			{ColumnName: "description", ColumnType: 5},
+			{ColumnName: "zone", ColumnType: 5},
+		},
+	}
+	tableAddress := &loggerExporter.TableData{
 		TableName: "firewall_address_detail",
-		Columns: []*le.ColumnData{
-			&le.ColumnData{ColumnName: "address_id", ColumnType: 5},
-			&le.ColumnData{ColumnName: "id_type", ColumnType: 1},
-			&le.ColumnData{ColumnName: "address_detail_id", ColumnType: 5},
-			&le.ColumnData{ColumnName: "address_type", ColumnType: 1},
-			&le.ColumnData{ColumnName: "address", ColumnType: 5},
-			&le.ColumnData{ColumnName: "v4", ColumnType: 1},
-			&le.ColumnData{ColumnName: "end_address", ColumnType: 5},
-			&le.ColumnData{ColumnName: "mask", ColumnType: 1},
-			&le.ColumnData{ColumnName: "name", ColumnType: 5},
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "address_id", ColumnType: 5},
+			{ColumnName: "id_type", ColumnType: 1},
+			{ColumnName: "address_detail_id", ColumnType: 5},
+			{ColumnName: "address_type", ColumnType: 1},
+			{ColumnName: "address", ColumnType: 5},
+			{ColumnName: "v4", ColumnType: 1},
+			{ColumnName: "end_address", ColumnType: 5},
+			{ColumnName: "mask", ColumnType: 1},
+			{ColumnName: "name", ColumnType: 5},
 		},
 	}
 	if addressSet == nil {
-		return table_addressSet, table_address
+		return tableAddressSet, tableAddress
 	}
 	for _, addressSetItem := range addressSet {
-		addressset_id := utils.GetUUID()
-		table_addressSet.Rows = append(table_addressSet.Rows,
-			&le.RowValue{
-				FieldValue: []*le.FieldValue{
-					&le.FieldValue{Data: &le.FieldValue_S{S: batchId}},
-					&le.FieldValue{Data: &le.FieldValue_S{S: addressset_id}},
-					&le.FieldValue{Data: &le.FieldValue_S{S: addressSetItem.GetString("name")}},
-					&le.FieldValue{Data: &le.FieldValue_S{S: addressSetItem.GetString("description")}},
-					&le.FieldValue{Data: &le.FieldValue_S{S: addressSetItem.GetString("zone")}},
+		addresSsetID := utils.GetUUID()
+		tableAddressSet.Rows = append(tableAddressSet.Rows,
+			&loggerExporter.RowValue{
+				FieldValue: []*loggerExporter.FieldValue{
+					{Data: &loggerExporter.FieldValue_S{S: batchID}},
+					{Data: &loggerExporter.FieldValue_S{S: addresSsetID}},
+					{Data: &loggerExporter.FieldValue_S{S: addressSetItem.GetString("name")}},
+					{Data: &loggerExporter.FieldValue_S{S: addressSetItem.GetString("description")}},
+					{Data: &loggerExporter.FieldValue_S{S: addressSetItem.GetString("zone")}},
 				},
 			},
 		)
@@ -153,24 +184,180 @@ func convertAddressSetInfo(batchId string, addressSet []*jjson.JsonObject) (*le.
 			default:
 				address = addressItem.GetString("address")
 			}
-			table_address.Rows = append(table_address.Rows,
-				&le.RowValue{
-					FieldValue: []*le.FieldValue{
-						&le.FieldValue{Data: &le.FieldValue_S{S: addressset_id}},
-						&le.FieldValue{Data: &le.FieldValue_I{I: AddressId_AddressSet}},
-						&le.FieldValue{Data: &le.FieldValue_S{S: utils.GetUUID()}},
-						&le.FieldValue{Data: &le.FieldValue_I{I: addressType}},
-						&le.FieldValue{Data: &le.FieldValue_S{S: address}},
-						&le.FieldValue{Data: &le.FieldValue_I{I: int32(addressItem.GetInt("v4"))}},
-						&le.FieldValue{Data: &le.FieldValue_S{S: addressItem.GetString("end")}},
-						&le.FieldValue{Data: &le.FieldValue_I{I: int32(addressItem.GetInt("mask"))}},
-						&le.FieldValue{Data: &le.FieldValue_S{S: addressItem.GetString("name")}},
+			tableAddress.Rows = append(tableAddress.Rows,
+				&loggerExporter.RowValue{
+					FieldValue: []*loggerExporter.FieldValue{
+						{Data: &loggerExporter.FieldValue_S{S: addresSsetID}},
+						{Data: &loggerExporter.FieldValue_I{I: AddressId_AddressSet}},
+						{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+						{Data: &loggerExporter.FieldValue_I{I: addressType}},
+						{Data: &loggerExporter.FieldValue_S{S: address}},
+						{Data: &loggerExporter.FieldValue_I{I: int32(addressItem.GetInt("v4"))}},
+						{Data: &loggerExporter.FieldValue_S{S: addressItem.GetString("end")}},
+						{Data: &loggerExporter.FieldValue_I{I: int32(addressItem.GetInt("mask"))}},
+						{Data: &loggerExporter.FieldValue_S{S: addressItem.GetString("name")}},
 					},
 				},
 			)
 		}
 	}
-	return table_addressSet, table_address
+	return tableAddressSet, tableAddress
+}
+
+func convertServiceSetInfo(batchID string, serviceSet []*jjson.JsonObject) (*loggerExporter.TableData, *loggerExporter.TableData) {
+	tableServiceSet := &loggerExporter.TableData{
+		TableName: "firewall_serviceset",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "batch_id", ColumnType: 5},
+			{ColumnName: "serviceset_id", ColumnType: 5},
+			{ColumnName: "name", ColumnType: 5},
+			{ColumnName: "description", ColumnType: 5},
+		},
+	}
+	tableService := &loggerExporter.TableData{
+		TableName: "firewall_service_detail",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "service_id", ColumnType: 5},
+			{ColumnName: "id_type", ColumnType: 1},
+			{ColumnName: "service_detail_id", ColumnType: 5},
+			{ColumnName: "protocol", ColumnType: 5},
+			{ColumnName: "source_port_from", ColumnType: 1},
+			{ColumnName: "source_port_to", ColumnType: 1},
+			{ColumnName: "destination_port_from", ColumnType: 1},
+			{ColumnName: "destination_port_to", ColumnType: 1},
+		},
+	}
+	if serviceSet == nil {
+		return tableServiceSet, tableService
+	}
+	for _, serviceSetItem := range serviceSet {
+		serviceSetID := utils.GetUUID()
+		tableServiceSet.Rows = append(tableServiceSet.Rows,
+			&loggerExporter.RowValue{
+				FieldValue: []*loggerExporter.FieldValue{
+					{Data: &loggerExporter.FieldValue_S{S: batchID}},
+					{Data: &loggerExporter.FieldValue_S{S: serviceSetID}},
+					{Data: &loggerExporter.FieldValue_S{S: serviceSetItem.GetString("name")}},
+					{Data: &loggerExporter.FieldValue_S{S: serviceSetItem.GetString("description")}},
+				},
+			},
+		)
+		for _, serviceItem := range serviceSetItem.GetJsonArray("service") {
+			tableService.Rows = append(tableService.Rows,
+				&loggerExporter.RowValue{
+					FieldValue: []*loggerExporter.FieldValue{
+						{Data: &loggerExporter.FieldValue_S{S: serviceSetID}},
+						{Data: &loggerExporter.FieldValue_I{I: 0}},
+						{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("protocol")}},
+						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("source_port_from")}},
+						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("source_port_to")}},
+						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("destination_port_from")}},
+						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("destination_port_to")}},
+					},
+				},
+			)
+		}
+	}
+	return tableServiceSet, tableService
+}
+
+func convertDomainSetInfo(batchID string, domainSet []*jjson.JsonObject) (*loggerExporter.TableData, *loggerExporter.TableData) {
+	tableDomainSet := &loggerExporter.TableData{
+		TableName: "firewall_domainset",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "batch_id", ColumnType: 5},
+			{ColumnName: "domainset_id", ColumnType: 5},
+			{ColumnName: "name", ColumnType: 5},
+			{ColumnName: "description", ColumnType: 5},
+		},
+	}
+	tableDomain := &loggerExporter.TableData{
+		TableName: "firewall_domain_detail",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "domainset_id", ColumnType: 5},
+			{ColumnName: "domain_detail_id", ColumnType: 5},
+			{ColumnName: "name", ColumnType: 5},
+		},
+	}
+	if domainSet == nil {
+		return tableDomainSet, tableDomain
+	}
+	for _, domainSetItem := range domainSet {
+		domainSetID := utils.GetUUID()
+		tableDomainSet.Rows = append(tableDomainSet.Rows,
+			&loggerExporter.RowValue{
+				FieldValue: []*loggerExporter.FieldValue{
+					{Data: &loggerExporter.FieldValue_S{S: batchID}},
+					{Data: &loggerExporter.FieldValue_S{S: domainSetID}},
+					{Data: &loggerExporter.FieldValue_S{S: domainSetItem.GetString("name")}},
+					{Data: &loggerExporter.FieldValue_S{S: domainSetItem.GetString("description")}},
+				},
+			},
+		)
+		for _, domainItem := range domainSetItem.GetJsonArray("domains") {
+			tableDomain.Rows = append(tableDomain.Rows,
+				&loggerExporter.RowValue{
+					FieldValue: []*loggerExporter.FieldValue{
+						{Data: &loggerExporter.FieldValue_S{S: domainSetID}},
+						{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+						{Data: &loggerExporter.FieldValue_S{S: domainItem.GetString("name")}},
+					},
+				},
+			)
+		}
+	}
+	return tableDomainSet, tableDomain
+}
+
+func convertZoneSetInfo(batchID string, zoneSet []*jjson.JsonObject) (*loggerExporter.TableData, *loggerExporter.TableData) {
+	tableZoneSet := &loggerExporter.TableData{
+		TableName: "firewall_zoneset",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "batch_id", ColumnType: 5},
+			{ColumnName: "zoneset_id", ColumnType: 5},
+			{ColumnName: "name", ColumnType: 5},
+			{ColumnName: "description", ColumnType: 5},
+			{ColumnName: "priority", ColumnType: 1},
+		},
+	}
+	tableZone := &loggerExporter.TableData{
+		TableName: "firewall_zone_detail",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "zoneset_id", ColumnType: 5},
+			{ColumnName: "zone_detail_id", ColumnType: 5},
+			{ColumnName: "interface_name", ColumnType: 5},
+		},
+	}
+	if zoneSet == nil {
+		return tableZoneSet, tableZone
+	}
+	for _, zoneSetItem := range zoneSet {
+		zoneSetID := utils.GetUUID()
+		tableZoneSet.Rows = append(tableZoneSet.Rows,
+			&loggerExporter.RowValue{
+				FieldValue: []*loggerExporter.FieldValue{
+					{Data: &loggerExporter.FieldValue_S{S: batchID}},
+					{Data: &loggerExporter.FieldValue_S{S: zoneSetID}},
+					{Data: &loggerExporter.FieldValue_S{S: zoneSetItem.GetString("name")}},
+					{Data: &loggerExporter.FieldValue_S{S: zoneSetItem.GetString("description")}},
+					{Data: &loggerExporter.FieldValue_I{I: int32(zoneSetItem.GetInt("priority"))}},
+				},
+			},
+		)
+		for _, zoneItem := range zoneSetItem.GetJsonArray("interfaces") {
+			tableZone.Rows = append(tableZone.Rows,
+				&loggerExporter.RowValue{
+					FieldValue: []*loggerExporter.FieldValue{
+						{Data: &loggerExporter.FieldValue_S{S: zoneSetID}},
+						{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+						{Data: &loggerExporter.FieldValue_S{S: zoneItem.String()}},
+					},
+				},
+			)
+		}
+	}
+	return tableZoneSet, tableZone
 }
 
 func getFirewallConfig(shellInfo ShellConfig) (string, error) {
