@@ -1,32 +1,28 @@
 package sshclient
 
 import (
-	"fmt"
-	"log"
+	"os"
 	"testing"
 )
 
 func TestH3Client(t *testing.T) {
-	client := NewSSHConnection("134.95.237.121:2223", "nmread", "Siemens#202405", 30)
+	client := NewSSHConnection("", "", "", 30)
 	defer client.CloseConnection()
-	session := client.NewSession()
-	// 请求创建伪终端
-	// modes := ssh.TerminalModes{
-	// 	ssh.ECHO:          0,     // disable echoing
-	// 	ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
-	// 	ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
-	// }
-	// if err := session.session.RequestPty("xterm", 80, 40, modes); err != nil {
-	// 	log.Fatalf("Failed to request pseudo-terminal: %v", err)
-	// }
-	session.BindInputOutput()
-	if err := session.session.Shell(); err != nil {
-		log.Fatalf("Failed to run command:%v", err)
+	session := client.NewSession("gbk")
+	defer session.CloseSession()
+	file, err := os.Create("log.txt")
+	if err != nil {
+		t.Errorf("Create file failed, error: %s", err)
 	}
-	session.GetShellCommandResult("<TDL_3FK5_6900>", "---- More ----", "")
-	session.SendShellCommand("display arp")
-	fmt.Println(session.GetShellCommandResult("<TDL_3FK5_6900>", "---- More ----", ""))
-	session.SendShellCommand("display mac-address")
-	fmt.Println(session.GetShellCommandResult("<TDL_3FK5_6900>", "---- More ----", ""))
+	defer file.Close()
+	content, err := session.ExecuteShellCommand("display current-configuration", "---- More ----",
+		"<TDL3F-H8-Eud1000E-1>", "")
+	if err != nil {
+		t.Errorf("ExecuteShellCommand failed, error: %s", err)
+	}
+	file.WriteString(content)
+	session.SendShellCommand("display zone")
+	content = session.GetShellCommandResult("<TDL3F-H8-Eud1000E-1>", "---- More ----", "")
+	file.WriteString(content)
 	session.CloseSession()
 }

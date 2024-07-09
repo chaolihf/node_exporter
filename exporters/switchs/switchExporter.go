@@ -94,7 +94,7 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 	}
 	defer connection.CloseConnection()
 	if shellInfo.Shell == "1" {
-		session := connection.NewSession()
+		session := connection.NewSession("")
 		defer session.CloseSession()
 		content, err := session.ExecuteShellCommand(shellInfo.Steps[0].Command,
 			moreCommand, shellInfo.Prompt, clearLine)
@@ -111,7 +111,7 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 		}
 	} else {
 		for _, stepInfo := range shellInfo.Steps {
-			session := connection.NewSession()
+			session := connection.NewSession("")
 			content, err := session.ExecuteSingleCommand(stepInfo.Command)
 			if err != nil {
 				return nil

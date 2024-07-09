@@ -5,6 +5,10 @@ package utils
 
 import (
 	"os"
+	"strconv"
+	"time"
+
+	"github.com/gofrs/uuid"
 )
 
 func ReadStringFromFile(fileName string) (string, error) {
@@ -21,4 +25,12 @@ func ReadDataFromFile(fileName string) ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+func GetUUID() string {
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		return strconv.FormatInt(time.Now().UnixMilli(), 10)
+	}
+	return uuid.String()
 }

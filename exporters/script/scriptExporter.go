@@ -76,7 +76,11 @@ func (collector *scriptCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func getScriptResult(shellInfo ShellConfig, template Template) []prometheus.Metric {
-	session := sshclient.NewSSHSession(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
+	connection := sshclient.NewSSHConnection(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
+	if connection == nil {
+		return nil
+	}
+	session := connection.NewSession("")
 	if session == nil {
 		return nil
 	}
