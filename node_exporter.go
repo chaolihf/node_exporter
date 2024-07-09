@@ -33,6 +33,7 @@ import (
 	"github.com/chaolihf/node_exporter/collector"
 	"github.com/chaolihf/node_exporter/exporters/firewall"
 	"github.com/chaolihf/node_exporter/exporters/hadoop"
+	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/chaolihf/node_exporter/exporters/switchs"
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
@@ -63,6 +64,7 @@ var (
 	enableHadoopExporter   bool = false
 	enableSwitchExporter   bool = false
 	enableFirewallExporter bool = false
+	enableBlackBoxExporter bool = false
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -177,6 +179,8 @@ func initReadConfig() error {
 					enableSwitchExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "firewall_exporter" {
 					enableFirewallExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "blackbox_exporter" {
+					enableBlackBoxExporter = true
 				}
 			}
 		}
@@ -282,6 +286,12 @@ func Main() {
 			firewall.RequestHandler(w, r)
 		})
 		firewall.SetLogger(logger)
+	}
+	if enableBlackBoxExporter {
+		http.HandleFunc("/icmpMetrics", func(w http.ResponseWriter, r *http.Request) {
+			icmp.RequestHandler(w, r)
+		})
+		icmp.SetLogger(logger)
 	}
 
 	tlsconf := &tls.Config{
