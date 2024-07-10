@@ -7,8 +7,10 @@ package icmp
 import (
 	"bytes"
 	"context"
+	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"runtime"
 	"sort"
 	"sync"
@@ -18,7 +20,6 @@ import (
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/zap"
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -80,7 +81,7 @@ func getICMPSequence() uint16 {
 }
 
 type ICMPScriptPlugin struct {
-	logger             *zap.Logger
+	logger             log.Logger
 	DontFragment       bool
 	sourceIPAddress    string
 	PayloadSize        int
@@ -90,7 +91,7 @@ type ICMPScriptPlugin struct {
 	IPProtocolFallback bool   `yaml:"ip_protocol_fallback,omitempty"`
 }
 
-func NewICMPScriptPlugin(logger *zap.Logger) *ICMPScriptPlugin {
+func NewICMPScriptPlugin(logger log.Logger) *ICMPScriptPlugin {
 	return &ICMPScriptPlugin{
 		logger:             logger,
 		DontFragment:       false,
@@ -172,8 +173,21 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 // 初始化配置文件
 func init() {
 	//初始化ICMP采集配置
-	var logger *zap.Logger
 	NewICMPScriptPlugin(logger)
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// PID is typically 1 when running in a container; in that case, set
+	// the ICMP echo ID to a random value to avoid potential clashes with
+	// other blackbox_exporter instances. See #411.
+	if pid := os.Getpid(); pid == 1 {
+		icmpID = r.Intn(1 << 16)
+	} else {
+		icmpID = pid & 0xffff
+	}
+
+	// Start the ICMP echo sequence at a random offset to prevent them from
+	// being in sync when several blackbox_exporter instances are restarted
+	// at the same time. See #411.
+	icmpSequence = uint16(r.Intn(1 << 16))
 }
 
 func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus.Metric) (success bool) {
@@ -207,7 +221,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus
 
 	//registry.MustRegister(durationGaugeVec)
 
-	dstIPAddr, lookupTime, err := chooseProtocol(ctx, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, metrics)
+	dstIPAddr, lookupTime, err := chooseProtocol(nil, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, metrics)
 
 	if err != nil {
 		//logger.Error(fmt.Sprint("msg", "Error resolving address", err))
