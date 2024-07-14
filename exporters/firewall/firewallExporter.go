@@ -100,10 +100,117 @@ func FormatConfigInfo(configInfo string) ([]byte, error) {
 	tableDomainSet, tableDomain := convertDomainSetInfo(batchID, jsonConfigInfos.GetJsonArray("domainSet"))
 	tableZoneSet, tableZone := convertZoneSetInfo(batchID, jsonConfigInfos.GetJsonArray("zoneSet"))
 	tableBlacklist := convertBlacklistInfo(batchID, jsonConfigInfos.GetJsonArray("blacklist"))
+	tableRuleSet, tableRuleService, tableRuleZone := convertRuleSetInfo(batchID, jsonConfigInfos.GetJsonArray("rules"))
 	loggerDatas.TableData = append(loggerDatas.TableData, tableAddressSet, tableAddress,
 		tableServiceSet, tableService, tableDomainSet, tableDomain, tableZoneSet, tableZone,
-		tableBlacklist)
+		tableBlacklist, tableRuleSet, tableRuleService, tableRuleZone)
 	return proto.Marshal(loggerDatas)
+}
+
+func convertRuleSetInfo(batchID string, ruleSet []*jjson.JsonObject, tableAddress *loggerExporter.TableData,
+	tableService *loggerExporter.TableData) (*loggerExporter.TableData, *loggerExporter.TableData, *loggerExporter.TableData) {
+	tableRuleSet := &loggerExporter.TableData{
+		TableName: "firewall_ruleset",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "batch_id", ColumnType: 5},
+			{ColumnName: "ruleset_id", ColumnType: 5},
+			{ColumnName: "name", ColumnType: 5},
+			{ColumnName: "description", ColumnType: 5},
+			{ColumnName: "state", ColumnType: 5},
+			{ColumnName: "action", ColumnType: 5},
+			{ColumnName: "rule_order", ColumnType: 1},
+		},
+	}
+	tableRuleService := &loggerExporter.TableData{
+		TableName: "firewall_ruleset_service_detail",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "ruleset_id", ColumnType: 5},
+			{ColumnName: "rule_service_detail_id", ColumnType: 5},
+			{ColumnName: "rule_service_type", ColumnType: 1},
+			{ColumnName: "name", ColumnType: 5},
+		},
+	}
+	tableRuleZone := &loggerExporter.TableData{
+		TableName: "firewall_ruleset_zone_detail",
+		Columns: []*loggerExporter.ColumnData{
+			{ColumnName: "ruleset_id", ColumnType: 5},
+			{ColumnName: "rule_zone_id", ColumnType: 5},
+			{ColumnName: "rule_zone_type", ColumnType: 1},
+			{ColumnName: "name", ColumnType: 5},
+		},
+	}
+	if ruleSet == nil {
+		return tableRuleSet, tableRuleService, tableRuleZone
+	}
+	for _, ruleSetItem := range ruleSet {
+		ruleSetID := utils.GetUUID()
+		tableRuleSet.Rows = append(tableRuleSet.Rows,
+			&loggerExporter.RowValue{
+				FieldValue: []*loggerExporter.FieldValue{
+					{Data: &loggerExporter.FieldValue_S{S: batchID}},
+					{Data: &loggerExporter.FieldValue_S{S: ruleSetID}},
+					{Data: &loggerExporter.FieldValue_S{S: ruleSetItem.GetString("name")}},
+					{Data: &loggerExporter.FieldValue_S{S: ruleSetItem.GetString("description")}},
+					{Data: &loggerExporter.FieldValue_S{S: ruleSetItem.GetString("state")}},
+					{Data: &loggerExporter.FieldValue_S{S: ruleSetItem.GetString("action")}},
+					{Data: &loggerExporter.FieldValue_I{I: int32(ruleSetItem.GetInt("rule_order"))}},
+				},
+			},
+		)
+		for _, ruleItem := range ruleSetItem.GetJsonArray("sourseZone") {
+			tableRuleZone.Rows = append(tableRuleZone.Rows,
+				&loggerExporter.RowValue{
+					FieldValue: []*loggerExporter.FieldValue{
+						{Data: &loggerExporter.FieldValue_S{S: ruleSetID}},
+						{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+						{Data: &loggerExporter.FieldValue_I{I: 0}},
+						{Data: &loggerExporter.FieldValue_S{S: ruleItem.GetString("name")}},
+					},
+				},
+			)
+		}
+		for _, ruleItem := range ruleSetItem.GetJsonArray("destZone") {
+			tableRuleZone.Rows = append(tableRuleZone.Rows,
+				&loggerExporter.RowValue{
+					FieldValue: []*loggerExporter.FieldValue{
+						{Data: &loggerExporter.FieldValue_S{S: ruleSetID}},
+						{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+						{Data: &loggerExporter.FieldValue_I{I: 1}},
+						{Data: &loggerExporter.FieldValue_S{S: ruleItem.GetString("name")}},
+					},
+				},
+			)
+		}
+		for _, ruleItem := range ruleSetItem.GetJsonArray("service") {
+			serviceType := ruleItem.GetInt("type")
+			var serviceName string
+			serviceUUID := utils.GetUUID()
+			if serviceType == 0 {
+				serviceName = ruleItem.GetString("name")
+			} else {
+				//动态加载一个服务
+				addServiceFromItem(tableService, serviceUUID, 1, ruleItem)
+				serviceName = serviceUUID
+			}
+			tableRuleService.Rows = append(tableRuleService.Rows,
+				&loggerExporter.RowValue{
+					FieldValue: []*loggerExporter.FieldValue{
+						{Data: &loggerExporter.FieldValue_S{S: ruleSetID}},
+						{Data: &loggerExporter.FieldValue_S{S: serviceUUID}},
+						{Data: &loggerExporter.FieldValue_I{I: int32(serviceType)}},
+						{Data: &loggerExporter.FieldValue_S{S: serviceName}},
+					},
+				},
+			)
+		}
+		for _, ruleItem := range ruleSetItem.GetJsonArray("sourceAddr") {
+			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressId_RuleSet_Source)
+		}
+		for _, ruleItem := range ruleSetItem.GetJsonArray("destAddr") {
+			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressId_RuleSet_Destination)
+		}
+	}
+	return tableRuleSet, tableRuleService, tableRuleZone
 }
 
 func convertBlacklistInfo(batchID string, blacklist []*jjson.JsonObject) *loggerExporter.TableData {
@@ -174,34 +281,38 @@ func convertAddressSetInfo(batchID string, addressSet []*jjson.JsonObject) (*log
 			},
 		)
 		for _, addressItem := range addressSetItem.GetJsonArray("address") {
-			var address string
-			addressType := int32(addressItem.GetInt("type"))
-			switch addressType {
-			case 2:
-				address = fmt.Sprintf("%s/%d", address, addressType)
-			case 1:
-				address = addressItem.GetString("start")
-			default:
-				address = addressItem.GetString("address")
-			}
-			tableAddress.Rows = append(tableAddress.Rows,
-				&loggerExporter.RowValue{
-					FieldValue: []*loggerExporter.FieldValue{
-						{Data: &loggerExporter.FieldValue_S{S: addresSsetID}},
-						{Data: &loggerExporter.FieldValue_I{I: AddressId_AddressSet}},
-						{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
-						{Data: &loggerExporter.FieldValue_I{I: addressType}},
-						{Data: &loggerExporter.FieldValue_S{S: address}},
-						{Data: &loggerExporter.FieldValue_I{I: int32(addressItem.GetInt("v4"))}},
-						{Data: &loggerExporter.FieldValue_S{S: addressItem.GetString("end")}},
-						{Data: &loggerExporter.FieldValue_I{I: int32(addressItem.GetInt("mask"))}},
-						{Data: &loggerExporter.FieldValue_S{S: addressItem.GetString("name")}},
-					},
-				},
-			)
+			addAddressDetail(addressItem, tableAddress, addresSsetID, AddressId_AddressSet)
 		}
 	}
 	return tableAddressSet, tableAddress
+}
+
+func addAddressDetail(addressItem *jjson.JsonObject, tableAddress *loggerExporter.TableData, addresSsetID string, idType int32) {
+	var address string
+	addressType := int32(addressItem.GetInt("type"))
+	switch addressType {
+	case 2:
+		address = fmt.Sprintf("%s/%d", address, addressType)
+	case 1:
+		address = addressItem.GetString("start")
+	default:
+		address = addressItem.GetString("address")
+	}
+	tableAddress.Rows = append(tableAddress.Rows,
+		&loggerExporter.RowValue{
+			FieldValue: []*loggerExporter.FieldValue{
+				{Data: &loggerExporter.FieldValue_S{S: addresSsetID}},
+				{Data: &loggerExporter.FieldValue_I{I: idType}},
+				{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+				{Data: &loggerExporter.FieldValue_I{I: addressType}},
+				{Data: &loggerExporter.FieldValue_S{S: address}},
+				{Data: &loggerExporter.FieldValue_I{I: int32(addressItem.GetInt("v4"))}},
+				{Data: &loggerExporter.FieldValue_S{S: addressItem.GetString("end")}},
+				{Data: &loggerExporter.FieldValue_I{I: int32(addressItem.GetInt("mask"))}},
+				{Data: &loggerExporter.FieldValue_S{S: addressItem.GetString("name")}},
+			},
+		},
+	)
 }
 
 func convertServiceSetInfo(batchID string, serviceSet []*jjson.JsonObject) (*loggerExporter.TableData, *loggerExporter.TableData) {
@@ -243,23 +354,27 @@ func convertServiceSetInfo(batchID string, serviceSet []*jjson.JsonObject) (*log
 			},
 		)
 		for _, serviceItem := range serviceSetItem.GetJsonArray("service") {
-			tableService.Rows = append(tableService.Rows,
-				&loggerExporter.RowValue{
-					FieldValue: []*loggerExporter.FieldValue{
-						{Data: &loggerExporter.FieldValue_S{S: serviceSetID}},
-						{Data: &loggerExporter.FieldValue_I{I: 0}},
-						{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
-						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("protocol")}},
-						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("source_port_from")}},
-						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("source_port_to")}},
-						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("destination_port_from")}},
-						{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("destination_port_to")}},
-					},
-				},
-			)
+			addServiceFromItem(tableService, serviceSetID, 0, serviceItem)
 		}
 	}
 	return tableServiceSet, tableService
+}
+
+func addServiceFromItem(tableService *loggerExporter.TableData, serviceSetID string, idType int32, serviceItem *jjson.JsonObject) {
+	tableService.Rows = append(tableService.Rows,
+		&loggerExporter.RowValue{
+			FieldValue: []*loggerExporter.FieldValue{
+				{Data: &loggerExporter.FieldValue_S{S: serviceSetID}},
+				{Data: &loggerExporter.FieldValue_I{I: idType}},
+				{Data: &loggerExporter.FieldValue_S{S: utils.GetUUID()}},
+				{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("protocol")}},
+				{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("source_port_from")}},
+				{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("source_port_to")}},
+				{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("destination_port_from")}},
+				{Data: &loggerExporter.FieldValue_S{S: serviceItem.GetString("destination_port_to")}},
+			},
+		},
+	)
 }
 
 func convertDomainSetInfo(batchID string, domainSet []*jjson.JsonObject) (*loggerExporter.TableData, *loggerExporter.TableData) {
