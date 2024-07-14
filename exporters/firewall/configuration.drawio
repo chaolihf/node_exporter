@@ -399,7 +399,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="VycvXzzugbiKWhdmb7AI" name="配置项物理模型">
-        <mxGraphModel dx="2345" dy="1476" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="2667" dy="1601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -1338,6 +1338,18 @@
                 </mxCell>
                 <mxCell id="3fwOqW0hpEC7sl2RkgG6-255" value="&lt;div style=&quot;background-color: rgb(255, 255, 255); font-family: Consolas, &amp;quot;Courier New&amp;quot;, monospace; font-size: 14px; line-height: 19px;&quot;&gt;&lt;div&gt;&lt;span style=&quot;color: #008000;&quot;&gt;--id_type为0时，service_id为firewall_serviceset的serviceset_id&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;color: #008000;&quot;&gt;--id_type为1时，service_id为firewall_ruleset_service_detail的rule_service_detail_id&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
                     <mxGeometry x="930" y="160" width="450" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="8_feTShDzYxYsF2aB4De-5" style="edgeStyle=none;html=1;" edge="1" parent="1" source="8_feTShDzYxYsF2aB4De-4" target="3fwOqW0hpEC7sl2RkgG6-197">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="8_feTShDzYxYsF2aB4De-4" value="&lt;div style=&quot;background-color: rgb(255, 255, 255); font-family: Consolas, &amp;quot;Courier New&amp;quot;, monospace; font-size: 14px; line-height: 19px;&quot;&gt;&lt;div&gt;&lt;font color=&quot;#008000&quot;&gt;0: 源地址域 1：目标地址域&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+                    <mxGeometry x="830" y="-180" width="220" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="8_feTShDzYxYsF2aB4De-7" style="edgeStyle=none;html=1;" edge="1" parent="1" source="8_feTShDzYxYsF2aB4De-6" target="3fwOqW0hpEC7sl2RkgG6-184">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="8_feTShDzYxYsF2aB4De-6" value="&lt;div style=&quot;background-color: rgb(255, 255, 255); font-family: Consolas, &amp;quot;Courier New&amp;quot;, monospace; font-size: 14px; line-height: 19px;&quot;&gt;&lt;font color=&quot;#008000&quot;&gt;0:自动设置的名称 1:根据表达式生成的service&lt;/font&gt;&lt;/div&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+                    <mxGeometry x="280" y="330" width="450" height="70" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
