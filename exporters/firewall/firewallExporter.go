@@ -50,9 +50,9 @@ type ExporterConfig struct {
 }
 
 const (
-	AddressId_AddressSet int32 = iota
-	AddressId_RuleSet_Source
-	AddressId_RuleSet_Destination
+	AddressIdAddressSet int32 = iota
+	AddressIdRuleSetSource
+	AddressIdRuleSetDestination
 )
 
 var exporterInfo ExporterConfig
@@ -100,7 +100,8 @@ func FormatConfigInfo(configInfo string) ([]byte, error) {
 	tableDomainSet, tableDomain := convertDomainSetInfo(batchID, jsonConfigInfos.GetJsonArray("domainSet"))
 	tableZoneSet, tableZone := convertZoneSetInfo(batchID, jsonConfigInfos.GetJsonArray("zoneSet"))
 	tableBlacklist := convertBlacklistInfo(batchID, jsonConfigInfos.GetJsonArray("blacklist"))
-	tableRuleSet, tableRuleService, tableRuleZone := convertRuleSetInfo(batchID, jsonConfigInfos.GetJsonArray("rules"))
+	tableRuleSet, tableRuleService, tableRuleZone := convertRuleSetInfo(batchID, jsonConfigInfos.GetJsonArray("rules"),
+		tableAddress, tableService)
 	loggerDatas.TableData = append(loggerDatas.TableData, tableAddressSet, tableAddress,
 		tableServiceSet, tableService, tableDomainSet, tableDomain, tableZoneSet, tableZone,
 		tableBlacklist, tableRuleSet, tableRuleService, tableRuleZone)
@@ -204,10 +205,10 @@ func convertRuleSetInfo(batchID string, ruleSet []*jjson.JsonObject, tableAddres
 			)
 		}
 		for _, ruleItem := range ruleSetItem.GetJsonArray("sourceAddr") {
-			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressId_RuleSet_Source)
+			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressIdRuleSetSource)
 		}
 		for _, ruleItem := range ruleSetItem.GetJsonArray("destAddr") {
-			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressId_RuleSet_Destination)
+			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressIdRuleSetDestination)
 		}
 	}
 	return tableRuleSet, tableRuleService, tableRuleZone
@@ -281,7 +282,7 @@ func convertAddressSetInfo(batchID string, addressSet []*jjson.JsonObject) (*log
 			},
 		)
 		for _, addressItem := range addressSetItem.GetJsonArray("address") {
-			addAddressDetail(addressItem, tableAddress, addresSsetID, AddressId_AddressSet)
+			addAddressDetail(addressItem, tableAddress, addresSsetID, AddressIdAddressSet)
 		}
 	}
 	return tableAddressSet, tableAddress
