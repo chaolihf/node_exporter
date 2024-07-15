@@ -1,5 +1,3 @@
-const { match } = require("assert");
-
 /*
     return shell config ,first is more command ,second is clear line command 
 */
@@ -256,7 +254,8 @@ function parseServiceItem(items){
             case "destination":{
                 var portInfos=parsePorts(items.slice(index+1));
                 index+=portInfos.length+1;
-                serviceItem[item]=portInfos.ports;
+                serviceItem[item+"-port-from"]=portInfos.from;
+                serviceItem[item+"-port-to"].to=portInfos.to;
                 break;
             }
             default:
@@ -269,25 +268,29 @@ function parseServiceItem(items){
 
 function parsePorts(items){
     var index=0;
-    var ports=[];
+    var from,to;
     switch(items[0]){
         case "eq":{
-            ports.push({from:items[1],to:items[1]});
+            from=items[1];
+            to=items[1];
             index=2;
             break;
         }
         case "lt":{
-            ports.push({from:1,to:items[1]-1});
+            from=1;
+            to=items[1]-1;
             index=2;
             break;
         }
         case "gt":{
-            ports.push({from:items[1]+1,to:65535});
+            from=items[1]+1;
+            to=65535;
             index=2;
             break;
         }
         case "range":{
-            ports.push({from:items[1],to:items[2]});
+            from=items[1];
+            to=items[2];
             index=3;
             break;
         }
@@ -296,7 +299,7 @@ function parsePorts(items){
         }
     }
     
-    return {length:index,ports:ports};
+    return {length:index,from:from,to:to};
 }
 
 function parseZoneSet(data){
