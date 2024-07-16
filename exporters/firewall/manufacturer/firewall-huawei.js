@@ -92,7 +92,7 @@ function parseRule(data){
                 targetAddr.push(parseAddressInfo(items.slice(1)));
                 break;
             case "service":
-                service.push(items[1]);
+                service.push({type:0,name:items[1]});
                 break;
             case "description":
                 description=items[1];
