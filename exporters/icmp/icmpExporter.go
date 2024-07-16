@@ -211,7 +211,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus
 		})
 	)
 
-	logger := thisPlugin.logger
+	//logger := thisPlugin.logger
 
 	ctx, _ := context.WithDeadline(context.Background(),
 		time.Now().Add(time.Duration(thisPlugin.Deadline)*time.Second))
