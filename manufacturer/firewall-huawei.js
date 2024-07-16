@@ -7,7 +7,7 @@ function getShellConfig() {
 
 function getConfInfo(data){
     var parts=data.split("#\r\n");
-    var addressSet=[],serviceSet=[],zoneSet=[],rules,domains;
+    var addressSet=[],serviceSet=[],zoneSet=[],rules,domainSet;
     for(var i=0;i<parts.length;i++){
         var part=parts[i];
         if (part.startsWith("ip address-set")){
@@ -19,11 +19,11 @@ function getConfInfo(data){
         } else if (part.startsWith("security-policy")){
             rules=parseRules(part);
         } else if (part.startsWith(" domain-set")){
-            domains=parseDomainSet(part);
+            domainSet=parseDomainSet(part);
         }
     }
     return JSON.stringify({addressSet:addressSet,serviceSet:serviceSet,
-        zoneSet:zoneSet,rules:rules,domains:domains});
+        zoneSet:zoneSet,rules:rules,domainSet:domainSet});
 }
 
 function parseDomainSet(data){
@@ -92,7 +92,7 @@ function parseRule(data){
                 targetAddr.push(parseAddressInfo(items.slice(1)));
                 break;
             case "service":
-                service.push(items[1]);
+                service.push({type:0,name:items[1]});
                 break;
             case "description":
                 description=items[1];
@@ -192,7 +192,8 @@ function parseServiceItem(items){
             case "destination-port":{
                 var portInfos=parsePorts(items.slice(index+1));
                 index+=portInfos.length+1;
-                serviceItem[item]=portInfos.ports;
+                serviceItem[item+"-from"]=portInfos.from;
+                serviceItem[item+"-to"]=portInfos.to;
                 break;
             }
             case "service-set":{
@@ -210,19 +211,21 @@ function parseServiceItem(items){
 
 function parsePorts(items){
     var index=0;
-    var ports=[];
+    var from,to;
     while(index<items.length){
         const port=parseInt(items[index]);
         if (isNaN(port)) break;
         if (index+1<items.length && items[index+1]=="to" ){
-            ports.push({from:items[index],to:items[index+2]});
+            from=items[index];
+            to=items[index+2];
             index+=3;
         } else{
-            ports.push({from:items[index],to:items[index]});
+            from=items[index];
+            to=items[index];
             index+=1;
         }
     }
-    return {length:index,ports:ports};
+    return {length:index,from:from,to:to};
 }
 
 function parseZoneSet(data){

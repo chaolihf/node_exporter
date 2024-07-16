@@ -1,5 +1,3 @@
-const { match } = require("assert");
-
 /*
     return shell config ,first is more command ,second is clear line command 
 */
@@ -8,7 +6,7 @@ function getShellConfig() {
 }
 
 function getConfInfo(data){
-    var parts=data.split(/#\s*\r\n/);
+    var parts=data.split(/#\s*\r\r\n/);
     var addressSet=[],serviceSet=[],zoneSet=[],rules,blacklist;
     for(var i=0;i<parts.length;i++){
         var part=parts[i];
@@ -24,12 +22,12 @@ function getConfInfo(data){
             blacklist=parseBlacklist(part);
         } 
     }
-    return {addressSet:addressSet,serviceSet:serviceSet,zoneSet:zoneSet,rules:rules,blacklist:blacklist};
+    return JSON.stringify({addressSet:addressSet,serviceSet:serviceSet,zoneSet:zoneSet,rules:rules,blacklist:blacklist});
 }
 
 function parseBlacklist(data) {
     var blacklist=[];
-    var parts=data.split("\r\n");
+    var parts=data.split("\r\r\n");
     for(var i=0;i<parts.length;i++){
         var items=parts[i].trim().split(" ");
         if(items[0]=="blacklist"){
@@ -49,7 +47,7 @@ function parseDomainSet(data){
     var domainSet=[];
     var domainPart=data.split("domain-set");
     for (var j=0;j<domainPart.length;j++){
-        var parts=domainPart[j].trim().split("\r\n");
+        var parts=domainPart[j].trim().split("\r\r\n");
         var domainInfo={};
         var domains=[];
         for(var i=0;i<parts.length;i++){
@@ -83,7 +81,7 @@ function parseRules(data){
     var rulePart=data.split(" rule ");
     for (var i=1;i<rulePart.length;i++){
         var ruleInfo={},sourceZone=[],destZone=[],sourceAddr=[],destAddr=[], service=[],description,state;
-        var lineParts=rulePart[i].trim().split("\r\n");
+        var lineParts=rulePart[i].trim().split("\r\r\n");
         for(var j=0;j<lineParts.length;j++){
             var fieldPart=lineParts[j].trim().split(" ");
             switch(fieldPart[0]){
@@ -186,7 +184,7 @@ function parseAddressInfo(items){
 }
 
 function parseIpAddressSet(data){
-    var parts=data.split("\r\n");
+    var parts=data.split("\r\r\n");
     var name,zone,description,address=[];
     for(var i=0;i<parts.length;i++){
         var items=parts[i].trim().split(" ");
@@ -215,7 +213,7 @@ function parseIpAddressSet(data){
 
 
 function parseIpServiceSet(data){
-    var parts=data.split("\r\n");
+    var parts=data.split("\r\r\n");
     var name,description,service=[];
     for(var i=0;i<parts.length;i++){
         var items=parts[i].trim().split(" ");
@@ -257,7 +255,7 @@ function parseServiceItem(items){
                 var portInfos=parsePorts(items.slice(index+1));
                 index+=portInfos.length+1;
                 serviceItem[item+"-port-from"]=portInfos.from;
-                serviceItem[item+"-port-to"].to=portInfos.to;
+                serviceItem[item+"-port-to"]=portInfos.to;
                 break;
             }
             default:
@@ -305,7 +303,7 @@ function parsePorts(items){
 }
 
 function parseZoneSet(data){
-    var parts=data.split("\r\n");
+    var parts=data.split("\r\r\n");
     var zoneInfo={};
     var interfaces=[];
     for(var i=0;i<parts.length;i++){
