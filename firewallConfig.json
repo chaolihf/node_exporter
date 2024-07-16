@@ -13,6 +13,20 @@
                     "scriptFunction":"getConfInfo"
                 }
             ]
+        },
+        {
+            "name": "",
+            "host":"",
+            "user":"",
+            "password":"",
+            "mode":"h3",
+            "prompt":"",
+            "steps":[
+                {
+                    "command":"display current-configuration",
+                    "scriptFunction":"getConfInfo"
+                }
+            ]
         }
     ]
 }
