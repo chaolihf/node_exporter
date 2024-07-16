@@ -193,7 +193,7 @@ function parseServiceItem(items){
                 var portInfos=parsePorts(items.slice(index+1));
                 index+=portInfos.length+1;
                 serviceItem[item+"-from"]=portInfos.from;
-                serviceItem[item+"-to"].to=portInfos.to;
+                serviceItem[item+"-to"]=portInfos.to;
                 break;
             }
             case "service-set":{

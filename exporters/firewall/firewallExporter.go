@@ -515,7 +515,7 @@ func getFirewallConfig(shellInfo ShellConfig) (string, error) {
 	// 	fmt.Println("Error:", err)
 	// }
 	// file.Close()
-	return runScript(runner, shellInfo.Steps[0].ScriptFunction, content)
+	return RunScript(runner, shellInfo.Steps[0].ScriptFunction, content)
 }
 
 func getShellConfig(runner *javascript.JSRunner) (string, string, error) {
@@ -528,7 +528,7 @@ func getShellConfig(runner *javascript.JSRunner) (string, string, error) {
 	}
 }
 
-func runScript(runner *javascript.JSRunner, funcName string, parameter string) (string, error) {
+func RunScript(runner *javascript.JSRunner, funcName string, parameter string) (string, error) {
 	v, err := runner.RunFunction(funcName, parameter)
 	if err != nil {
 		return "", err
