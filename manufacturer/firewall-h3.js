@@ -164,6 +164,11 @@ function parseRules(data){
                 }
             }
         }
+        ruleInfo.sourceZone=sourceZone;
+        ruleInfo.destZone=destZone;
+        ruleInfo.sourceAddr=sourceAddr;
+        ruleInfo.service=service;
+        ruleInfo.destAddr=destAddr;
         rules.push(ruleInfo);
     }
     return rules;
@@ -173,7 +178,7 @@ function parseAddressInfo(items){
     if (items[0]=="range"){
         return {type:1,start:items[1],end:items[2]};
     } else if (items[0]=="host"){
-        return {type:0,address:items[1],v4: items[2].indexOf(":")==-1?1:0};
+        return {type:0,address:items[2],v4: items[2].indexOf(":")==-1?1:0};
     } else if (items[0]=="subnet"){
         return {type:2,address:items[1],mask:items[2],v4:1};
     } else if (items[0]=="group-object"){
