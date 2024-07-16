@@ -22,7 +22,7 @@ function getConfInfo(data){
             blacklist=parseBlacklist(part);
         } 
     }
-    return {addressSet:addressSet,serviceSet:serviceSet,zoneSet:zoneSet,rules:rules,blacklist:blacklist};
+    return JSON.stringify({addressSet:addressSet,serviceSet:serviceSet,zoneSet:zoneSet,rules:rules,blacklist:blacklist});
 }
 
 function parseBlacklist(data) {
@@ -255,7 +255,7 @@ function parseServiceItem(items){
                 var portInfos=parsePorts(items.slice(index+1));
                 index+=portInfos.length+1;
                 serviceItem[item+"-port-from"]=portInfos.from;
-                serviceItem[item+"-port-to"].to=portInfos.to;
+                serviceItem[item+"-port-to"]=portInfos.to;
                 break;
             }
             default:

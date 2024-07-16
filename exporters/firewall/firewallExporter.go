@@ -50,9 +50,9 @@ type ExporterConfig struct {
 }
 
 const (
-	AddressIdAddressSet int32 = iota
-	AddressIdRuleSetSource
-	AddressIdRuleSetDestination
+	AddressIDAddressSet int32 = iota
+	AddressIDRuleSetSource
+	AddressIDRuleSetDestination
 )
 
 var exporterInfo ExporterConfig
@@ -205,10 +205,10 @@ func convertRuleSetInfo(batchID string, ruleSet []*jjson.JsonObject, tableAddres
 			)
 		}
 		for _, ruleItem := range ruleSetItem.GetJsonArray("sourceAddr") {
-			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressIdRuleSetSource)
+			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressIDRuleSetSource)
 		}
 		for _, ruleItem := range ruleSetItem.GetJsonArray("destAddr") {
-			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressIdRuleSetDestination)
+			addAddressDetail(ruleItem, tableAddress, ruleSetID, AddressIDRuleSetDestination)
 		}
 	}
 	return tableRuleSet, tableRuleService, tableRuleZone
@@ -282,7 +282,7 @@ func convertAddressSetInfo(batchID string, addressSet []*jjson.JsonObject) (*log
 			},
 		)
 		for _, addressItem := range addressSetItem.GetJsonArray("address") {
-			addAddressDetail(addressItem, tableAddress, addresSsetID, AddressIdAddressSet)
+			addAddressDetail(addressItem, tableAddress, addresSsetID, AddressIDAddressSet)
 		}
 	}
 	return tableAddressSet, tableAddress
