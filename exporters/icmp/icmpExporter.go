@@ -131,29 +131,46 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 		Name: "probe_max_duration_seconds",
 		Help: "Returns the maximum time for a single probe ",
 	})
+	probeDNSLookupTimeSeconds := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "probe_dns_lookup_time_seconds",
+		Help: "Returns the time taken for probe dns lookup in seconds",
+	})
 	//起始时间
 	start := time.Now()
 	//初始化整型变量n，计算丢包数
 	n := 0
 	//定义一个时间切片用于记录四次探测耗费的时间
 	var durationSecondSlice []float64
+	//定义DNS解析时间切片用于存放四次解析耗费的时间
+	var probeDNSLookupTimeSlice []float64
+	//定义IP协议切片
+	var probeIPProtocolSlice []prometheus.Gauge
+	//定义IP哈希切片
+	var probeIPAddrHashSlice []prometheus.Gauge
 	//发送4个数据包并计算相关指标
 	for i := 0; i < 4; i++ {
 		//记录探测开始时间
 		everyStart := time.Now()
-		//若探测不成功发生丢包(探测时将获取到的三个指标放入resistry)
-		if !ProbeICMP(plugin, targetName, metrics) {
-			n++
-		}
+		isSuccess, protocolMetrics, lookupTime := ProbeICMP(plugin, targetName, metrics)
 		//记录探测结束时间
 		everyEnd := time.Since(everyStart).Seconds()
+		//若探测不成功发生丢包(探测时将获取到的三个指标放入resistry)
+		if !isSuccess {
+			n++
+		}
+		//记录每次DNS解析指标
+		probeDNSLookupTimeSlice = append(probeDNSLookupTimeSlice, lookupTime)
+		//记录每次IP协议指标
+		probeIPProtocolSlice = append(probeIPProtocolSlice, protocolMetrics["probeIPProtocolGauge"])
+		//记录每次IP哈希指标
+		probeIPAddrHashSlice = append(probeIPAddrHashSlice, protocolMetrics["probeIPAddrHash"])
 		//记录该次探测耗费时间
 		durationSecondSlice = append(durationSecondSlice, everyEnd)
 	}
 	//获取该次探测经历的时间(该时间为总时间，计算其平均值)
 	probeDurationGauge.Set(time.Since(start).Seconds() / 4)
 	//根据丢包数量计算丢包率
-	probeLossGauge.Set(float64(n+1) / 4)
+	probeLossGauge.Set(float64(n) / 4)
 	//获取四次探测耗时的极值
 	sort.Float64s(durationSecondSlice)
 	probeMinDurationGauge.Set(durationSecondSlice[0])
@@ -164,11 +181,21 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 	} else {
 		probeSuccessGauge.Set(0)
 	}
+	//计算平均值作为DNS解析的时间
+	dnsLookupTimeSum := 0.0
+	for _, value := range probeDNSLookupTimeSlice {
+		dnsLookupTimeSum += value
+	}
+	probeDNSLookupTimeSeconds.Add(dnsLookupTimeSum / 4)
+	//添加需要返回的指标
 	metrics = append(metrics, probeSuccessGauge)
 	metrics = append(metrics, probeDurationGauge)
 	metrics = append(metrics, probeLossGauge)
 	metrics = append(metrics, probeMinDurationGauge)
 	metrics = append(metrics, probeMaxDurationGauge)
+	metrics = append(metrics, probeDNSLookupTimeSeconds)
+	metrics = append(metrics, probeIPProtocolSlice[3])
+	metrics = append(metrics, probeIPAddrHashSlice[3])
 	return metrics
 }
 
@@ -192,7 +219,7 @@ func init() {
 	icmpSequence = uint16(r.Intn(1 << 16))
 }
 
-func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus.Metric) (success bool) {
+func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus.Metric) (success bool, protocolMetrics map[string]prometheus.Gauge, lookupTime float64) {
 	var (
 		requestType     icmp.Type
 		replyType       icmp.Type
@@ -222,13 +249,13 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus
 	}
 
 	//registry.MustRegister(durationGaugeVec)
-
-	dstIPAddr, lookupTime, err := chooseProtocol(nil, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, metrics, logger)
-
+	dstIPAddr, lookupTime, err, probeIPProtocolGauge, probeIPAddrHash := chooseProtocol(nil, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, logger)
+	protocolMetrics["probeIPProtocolGauge"] = probeIPProtocolGauge
+	protocolMetrics["probeIPAddrHash"] = probeIPAddrHash
 	if err != nil {
 		//logger.Error(fmt.Sprint("msg", "Error resolving address", err))
 		level.Error(logger).Log("msg", "Error resolving address", "err", err)
-		return false
+		return false, protocolMetrics, lookupTime
 	}
 	durationGaugeVec.WithLabelValues("resolve").Add(lookupTime)
 
@@ -237,7 +264,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus
 		if srcIP = net.ParseIP(thisPlugin.sourceIPAddress); srcIP == nil {
 			//logger.Error(fmt.Sprint("msg", "Error parsing source ip address", "srcIP", thisPlugin.sourceIPAddress))
 			level.Error(logger).Log("msg", "Error parsing source ip address", "srcIP", thisPlugin.sourceIPAddress)
-			return false
+			return false, protocolMetrics, lookupTime
 		}
 		//logger.Info(fmt.Sprint("msg", "Using source address", "srcIP", srcIP))
 		level.Info(logger).Log("msg", "Using source address", "srcIP", srcIP)
@@ -535,7 +562,7 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus
 			}
 			//logger.Info(fmt.Sprint("msg", "Found matching reply packet"))
 			level.Info(logger).Log("msg", "Found matching reply packet")
-			return true
+			return true, protocolMetrics, lookupTime
 		}
 	}
 }
