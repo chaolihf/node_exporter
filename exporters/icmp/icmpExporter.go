@@ -247,7 +247,8 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, metrics []prometheus
 		durationGaugeVec.WithLabelValues(lv)
 		//metrics = append(metrics, durationGaugeVec.WithLabelValues(lv))
 	}
-
+	//初始化map
+	protocolMetrics = make(map[string]prometheus.Gauge)
 	//registry.MustRegister(durationGaugeVec)
 	dstIPAddr, lookupTime, err, probeIPProtocolGauge, probeIPAddrHash := chooseProtocol(nil, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, logger)
 	protocolMetrics["probeIPProtocolGauge"] = probeIPProtocolGauge
