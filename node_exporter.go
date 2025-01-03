@@ -28,6 +28,7 @@ import (
 
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
+	"go.uber.org/zap"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
@@ -188,7 +189,19 @@ func initReadConfig() error {
 	return nil
 }
 
-func Main() {
+func Main(fileLogger *zap.Logger) {
+
+	defer func() {
+		fileLogger.Sync()
+		if r := recover(); r != nil {
+			fileLogger.Info(fmt.Sprintf("程序退出原因:", r))
+			fmt.Println("程序退出原因:", r)
+		} else {
+			fileLogger.Info("程序正常退出")
+			fmt.Println("程序正常退出")
+		}
+	}()
+
 	var (
 		//修改默认路径
 		metricsPath = kingpin.Flag(

@@ -87,6 +87,7 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 		level.Error(logger).Log("err", "get shell config "+err.Error())
 		return nil
 	}
+	//通过给定的用户名、密码建立ssh连接
 	connection := sshclient.NewSSHConnection(shellInfo.Host, shellInfo.User, shellInfo.Password, 10)
 	if connection == nil {
 		level.Error(logger).Log("err", "can't connect to "+shellInfo.Host)
@@ -101,6 +102,7 @@ func getScriptResult(shellInfo ShellConfig) []prometheus.Metric {
 		if err != nil {
 			return nil
 		}
+		//根据返回内容判断
 		switchLogger.Info(content)
 		metrics = append(metrics, runScript(runner, shellInfo.Steps[0].ScriptFunction, content)...)
 		for _, stepInfo := range shellInfo.Steps[1:] {
