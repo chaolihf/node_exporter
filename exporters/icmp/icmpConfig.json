@@ -1,10 +1,5 @@
 {
-    "switchs":[
-        {
-            "ip":""
-        },
-        {
-            "ip":""
-        }
-]
+    "packetNum":4,
+    "maxTracerouteTTL":20,
+    "traceroutePacketSize":32
 }

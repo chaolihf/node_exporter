@@ -11,12 +11,16 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/chaolihf/node_exporter/pkg/clients/sshclient"
+	"github.com/chaolihf/node_exporter/pkg/utils"
+	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,6 +34,7 @@ var logger log.Logger
 
 type icmpCollector struct {
 	TargetName string
+	IcmpType   string
 }
 
 var (
@@ -37,6 +42,12 @@ var (
 	icmpSequence      uint16
 	icmpSequenceMutex sync.Mutex
 	//DefaultICMPTTL    = 64
+	//设置每次ping的包数，默认值为4
+	packetNum int = 4
+	//设置traceroute的最大TTL值，默认为20
+	maxTracerouteTTL int = 20
+	//traceroute单次的包大小，默认为32
+	traceroutePacketSize int = 32
 )
 
 var isIcmpInited = false
@@ -53,12 +64,22 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	registry := prometheus.NewRegistry()
 	targetName := params.Get("target")
+	//声明icmp操作类型
+	var icmpType string
+	//判断是否有icmpType参数，没有则默认为0
+	if params.Has("icmpType") {
+		//0代表只采集ping,1代表只采集traceroute,2代表同时采集ping和traceroute
+		icmpType = params.Get("icmpType")
+	} else {
+		icmpType = "0"
+	}
 	if targetName == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("missing target parameter!"))
 		return
 	}
-	registry.MustRegister(&icmpCollector{TargetName: targetName})
+
+	registry.MustRegister(&icmpCollector{TargetName: targetName, IcmpType: icmpType})
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
 }
@@ -68,10 +89,28 @@ func (collector *icmpCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *icmpCollector) Collect(ch chan<- prometheus.Metric) {
-	metrics := getIcmpResult(collector.TargetName)
-	for _, metric := range metrics {
-		ch <- metric
+	//若为0则表示只采集并返回ping数据，1表示只返回traceroute数据，2表示同时采集ping和traceroute数据
+	if collector.IcmpType == "0" {
+		metrics := getIcmpResult(collector.TargetName)
+		for _, metric := range metrics {
+			ch <- metric
+		}
+	} else if collector.IcmpType == "1" {
+		metrics := getTracerouteResult(collector.TargetName)
+		for _, metric := range metrics {
+			ch <- metric
+		}
+	} else {
+		metrics := getIcmpResult(collector.TargetName)
+		traceRouteMetrics := getTracerouteResult(collector.TargetName)
+		for _, metric := range metrics {
+			ch <- metric
+		}
+		for _, tracerouteMetric := range traceRouteMetrics {
+			ch <- tracerouteMetric
+		}
 	}
+
 }
 
 func getICMPSequence() uint16 {
@@ -103,6 +142,42 @@ func NewICMPScriptPlugin(logger log.Logger) *ICMPScriptPlugin {
 		IPProtocol:         "ip4",
 		IPProtocolFallback: true,
 	}
+}
+
+// 获取traceroute指标并拼装
+func getTracerouteResult(targetName string) []prometheus.Metric {
+	var metrics []prometheus.Metric
+
+	// 构建traceroute命令
+	cmd := exec.Command("traceroute", "-m", strconv.Itoa(maxTracerouteTTL), targetName, strconv.Itoa(traceroutePacketSize))
+
+	// 创建一个bytes.Buffer来捕获命令的输出
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	// 执行命令并捕获任何错误
+	err := cmd.Run()
+	if err != nil {
+		level.Error(logger).Log("msg", "Error executing traceroute:", "err", err)
+		return nil
+	}
+
+	tracerouteResult := out.String()
+
+	// 打印traceroute命令的输出
+	level.Info(logger).Log("msg", "traceroute output:", "output", tracerouteResult)
+
+	metrics = append(metrics, createTracerouteMetric(tracerouteResult))
+
+	return metrics
+}
+
+func createTracerouteMetric(tracerouteResult string) prometheus.Metric {
+	var tags = make(map[string]string)
+	tags["tracerouteResult"] = tracerouteResult
+	metricDesc := prometheus.NewDesc("tracerouteResult", "tracerouteResult", nil, tags)
+	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(0))
+	return metric
 }
 
 // 完成网络指标的获取和拼装
@@ -147,8 +222,8 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 	var probeIPProtocolSlice []prometheus.Gauge
 	//定义IP哈希切片
 	var probeIPAddrHashSlice []prometheus.Gauge
-	//发送4个数据包并计算相关指标
-	for i := 0; i < 4; i++ {
+	//发送设定数量的数据包并计算相关指标
+	for i := 0; i < packetNum; i++ {
 		//记录探测开始时间
 		everyStart := time.Now()
 		isSuccess, protocolMetrics, lookupTime := ProbeICMP(plugin, targetName, metrics)
@@ -168,15 +243,15 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 		durationSecondSlice = append(durationSecondSlice, everyEnd)
 	}
 	//获取该次探测经历的时间(该时间为总时间，计算其平均值)
-	probeDurationGauge.Set(time.Since(start).Seconds() / 4)
+	probeDurationGauge.Set(time.Since(start).Seconds() / float64(packetNum))
 	//根据丢包数量计算丢包率
-	probeLossGauge.Set(float64(n) / 4)
+	probeLossGauge.Set(float64(n) / float64(packetNum))
 	//获取四次探测耗时的极值
 	sort.Float64s(durationSecondSlice)
 	probeMinDurationGauge.Set(durationSecondSlice[0])
 	probeMaxDurationGauge.Set(durationSecondSlice[len(durationSecondSlice)-1])
-	//若丢包数小于4则探测成功
-	if n < 4 {
+	//若丢包数小于设置的包数则探测成功
+	if n < packetNum {
 		probeSuccessGauge.Set(1)
 	} else {
 		probeSuccessGauge.Set(0)
@@ -186,7 +261,7 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 	for _, value := range probeDNSLookupTimeSlice {
 		dnsLookupTimeSum += value
 	}
-	probeDNSLookupTimeSeconds.Add(dnsLookupTimeSum / 4)
+	probeDNSLookupTimeSeconds.Add(dnsLookupTimeSum / float64(packetNum))
 	//添加需要返回的指标
 	metrics = append(metrics, probeSuccessGauge)
 	metrics = append(metrics, probeDurationGauge)
@@ -201,6 +276,23 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 
 // 初始化配置文件
 func init() {
+
+	filePath := "icmpConfig.json"
+	content, err := utils.ReadDataFromFile(filePath)
+	if err != nil {
+		level.Error(logger).Log("msg", "读取文件出错", "err", err)
+	} else {
+		jsonConfigInfos, err := jjson.NewJsonObject([]byte(content))
+		if err != nil {
+			level.Error(logger).Log("msg", "Error json format", "err", err)
+		} else {
+			maxTracerouteTTL = jsonConfigInfos.GetInt("maxTracerouteTTL")
+			packetNum = jsonConfigInfos.GetInt("packetNum")
+			traceroutePacketSize = jsonConfigInfos.GetInt("traceroutePacketSize")
+		}
+
+	}
+
 	//初始化ICMP采集配置
 	plugin = NewICMPScriptPlugin(logger)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
