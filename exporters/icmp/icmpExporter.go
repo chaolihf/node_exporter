@@ -176,8 +176,9 @@ func getTracerouteResult(targetName string) []prometheus.Metric {
 
 func createTracerouteMetric(tracerouteResult string) prometheus.Metric {
 	var tags = make(map[string]string)
-	tags["tracerouteResult"] = tracerouteResult
-	metricDesc := prometheus.NewDesc("tracerouteResult", "tracerouteResult", nil, tags)
+	tags["traceroute_result"] = tracerouteResult
+	// 第一个参数为指标名称，第二个参数为指标的解释或描述
+	metricDesc := prometheus.NewDesc("traceroute_metric", "tracerouteMetric", nil, tags)
 	metric := prometheus.MustNewConstMetric(metricDesc, prometheus.CounterValue, float64(0))
 	return metric
 }
