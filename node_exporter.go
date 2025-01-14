@@ -194,11 +194,11 @@ func Main(fileLogger *zap.Logger) {
 	defer func() {
 		fileLogger.Sync()
 		if r := recover(); r != nil {
-			fileLogger.Info(fmt.Sprintf("程序退出原因:", r))
-			fmt.Println("程序退出原因:", r)
+			fileLogger.Info(fmt.Sprintf("node_exporter退出原因:", r))
+			fmt.Println("node_exporter退出原因:", r)
 		} else {
-			fileLogger.Info("程序正常退出")
-			fmt.Println("程序正常退出")
+			fileLogger.Info("node_exporter正常退出")
+			fmt.Println("node_exporter正常退出")
 		}
 	}()
 
