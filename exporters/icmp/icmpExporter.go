@@ -244,6 +244,7 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 		//记录该次探测耗费时间
 		durationSecondSlice = append(durationSecondSlice, everyEnd)
 	}
+	level.Info(logger).Log("msg", "durationSecondSlice length:", "time", len(durationSecondSlice))
 	//获取该次探测经历的时间(该时间为总时间，计算其平均值)
 	probeDurationGauge.Set(time.Since(start).Seconds() / float64(packetNum))
 	//根据丢包数量计算丢包率
