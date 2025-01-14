@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	stdlog "log"
+
 	"github.com/chaolihf/node_exporter/pkg/clients/sshclient"
 	"github.com/chaolihf/node_exporter/pkg/utils"
 	jjson "github.com/chaolihf/udpgo/json"
@@ -90,7 +92,7 @@ func (collector *icmpCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (collector *icmpCollector) Collect(ch chan<- prometheus.Metric) {
 	//若为0则表示只采集并返回ping数据，1表示只返回traceroute数据，2表示同时采集ping和traceroute数据
-	if collector.IcmpType == "0" {
+	if collector.IcmpType == "0" || collector.IcmpType == "" {
 		metrics := getIcmpResult(collector.TargetName)
 		for _, metric := range metrics {
 			ch <- metric
@@ -280,7 +282,7 @@ func init() {
 	filePath := "icmpConfig.json"
 	content, err := utils.ReadDataFromFile(filePath)
 	if err != nil {
-		level.Error(logger).Log("msg", "读取文件出错", "err", err)
+		stdlog.Printf("读取文件出错:%s,%s", filePath, err.Error())
 	} else {
 		jsonConfigInfos, err := jjson.NewJsonObject([]byte(content))
 		if err != nil {
