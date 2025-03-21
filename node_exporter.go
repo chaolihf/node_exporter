@@ -32,6 +32,7 @@ import (
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
+	"github.com/chaolihf/node_exporter/exporters/dns"
 	"github.com/chaolihf/node_exporter/exporters/firewall"
 	"github.com/chaolihf/node_exporter/exporters/hadoop"
 	"github.com/chaolihf/node_exporter/exporters/icmp"
@@ -66,6 +67,7 @@ var (
 	enableSwitchExporter   bool = false
 	enableFirewallExporter bool = false
 	enableBlackBoxExporter bool = false
+	enableDnsExporter      bool = false
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -182,6 +184,8 @@ func initReadConfig() error {
 					enableFirewallExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "blackbox_exporter" {
 					enableBlackBoxExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "dns_exporter" {
+					enableDnsExporter = true
 				}
 			}
 		}
@@ -305,6 +309,12 @@ func Main(fileLogger *zap.Logger) {
 			icmp.RequestHandler(w, r)
 		})
 		icmp.SetLogger(logger)
+	}
+	if enableDnsExporter {
+		http.HandleFunc("/dnsMetrics", func(w http.ResponseWriter, r *http.Request) {
+			dns.RequestHandler(w, r)
+		})
+		dns.SetLogger(logger)
 	}
 
 	tlsconf := &tls.Config{
