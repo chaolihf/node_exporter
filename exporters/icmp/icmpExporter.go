@@ -20,7 +20,6 @@ import (
 
 	stdlog "log"
 
-	"github.com/chaolihf/node_exporter/pkg/clients/sshclient"
 	"github.com/chaolihf/node_exporter/pkg/utils"
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
@@ -30,6 +29,7 @@ import (
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
+	"golang.org/x/sync/errgroup"
 )
 
 var logger log.Logger
@@ -57,7 +57,7 @@ var isIcmpInited = false
 func SetLogger(globalLogger log.Logger) {
 	if !isIcmpInited {
 		logger = globalLogger
-		sshclient.SetLogger(globalLogger)
+		//sshclient.SetLogger(globalLogger)
 		isIcmpInited = true
 	}
 }
@@ -150,24 +150,56 @@ func NewICMPScriptPlugin(logger log.Logger) *ICMPScriptPlugin {
 func getTracerouteResult(targetName string) []prometheus.Metric {
 	var metrics []prometheus.Metric
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	// 构建traceroute命令
-	cmd := exec.Command("traceroute", "-m", strconv.Itoa(maxTracerouteTTL), targetName, strconv.Itoa(traceroutePacketSize))
+	//cmd := exec.Command("traceroute", "-m", strconv.Itoa(maxTracerouteTTL), targetName, strconv.Itoa(traceroutePacketSize))
+	cmd := exec.CommandContext(ctx, "traceroute", "-m", strconv.Itoa(maxTracerouteTTL), targetName, strconv.Itoa(traceroutePacketSize))
 
 	// 创建一个bytes.Buffer来捕获命令的输出
-	var out bytes.Buffer
-	cmd.Stdout = &out
+	g, ctx := errgroup.WithContext(ctx)
+	var out []byte
+	var err error
 
-	// 执行命令并捕获任何错误
-	err := cmd.Run()
-	if err != nil {
-		level.Error(logger).Log("msg", "Error executing traceroute:", "err", err)
-		return nil
+	// 启动命令并捕获输出
+	g.Go(func() error {
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			level.Error(logger).Log("msg", "Error executing traceroute:", "err", err)
+		}
+		return err
+	})
+
+	// 等待命令完成或超时
+	if err := g.Wait(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			level.Error(logger).Log("msg", "Error executing traceroute:", "err", err)
+		}
 	}
 
-	tracerouteResult := out.String()
+	// 如果没有超时且命令执行成功，打印结果
+	if ctx.Err() != context.DeadlineExceeded {
+		level.Info(logger).Log("msg", "Successsully executing traceroute:", "output", string(out))
+	}
 
-	// 打印traceroute命令的输出
-	level.Info(logger).Log("msg", "traceroute output:", "output", tracerouteResult)
+	tracerouteResult := string(out)
+
+	// // 创建一个bytes.Buffer来捕获命令的输出
+	// var out bytes.Buffer
+	// cmd.Stdout = &out
+
+	// // 执行命令并捕获任何错误
+	// err := cmd.Run()
+	// if err != nil {
+	// 	level.Error(logger).Log("msg", "Error executing traceroute:", "err", err)
+	// 	return nil
+	// } else if ctx.Err() == context.DeadlineExceeded {
+	// 	level.Error(logger).Log("msg", "Traceroute command timed out")
+	// 	return append(metrics, createTracerouteMetric(out.String()))
+	// }
+
+	// tracerouteResult := out.String()
 
 	metrics = append(metrics, createTracerouteMetric(tracerouteResult))
 
