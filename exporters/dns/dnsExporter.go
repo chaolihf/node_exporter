@@ -28,6 +28,10 @@ import (
 
 var logger log.Logger
 var isDnsInited = false
+var (
+	sc         = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
+	configFile = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
+)
 
 func SetLogger(globalLogger log.Logger) {
 	if !isDnsInited {
@@ -197,21 +201,13 @@ func validRcode(rcode int, valid []string, logger log.Logger) bool {
 	return false
 }
 
-var (
-	sc         = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
-	configFile = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
-)
-
-func init() {
-	if err := sc.ReloadConfig(*configFile, logger); err != nil {
-		level.Error(logger).Log("msg", "Error loading config", "err", err)
-	}
-}
-
 func ProbeDNS(target string, registry *prometheus.Registry, moduleName string) bool {
 	sc.Lock()
 	conf := sc.C
 	sc.Unlock()
+	if err := sc.ReloadConfig(*configFile, logger); err != nil {
+		level.Error(logger).Log("msg", "Error loading config", "err", err)
+	}
 	module, ok := conf.Modules[moduleName]
 	if !ok {
 		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
