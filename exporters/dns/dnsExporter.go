@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -196,7 +197,16 @@ func validRcode(rcode int, valid []string, logger log.Logger) bool {
 	return false
 }
 
-var sc = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
+var (
+	sc         = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
+	configFile = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
+)
+
+func init() {
+	if err := sc.ReloadConfig(*configFile, logger); err != nil {
+		level.Error(logger).Log("msg", "Error loading config", "err", err)
+	}
+}
 
 func ProbeDNS(target string, registry *prometheus.Registry, moduleName string) bool {
 	sc.Lock()
