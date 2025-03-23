@@ -242,6 +242,12 @@ func ProbeDNS(target string, registry *prometheus.Registry, moduleName string) b
 		probeDNSDurationGaugeVec.WithLabelValues(lv)
 	}
 
+	registry.MustRegister(probeDNSDurationGaugeVec)
+	registry.MustRegister(probeDNSAnswerRRSGauge)
+	registry.MustRegister(probeDNSAuthorityRRSGauge)
+	registry.MustRegister(probeDNSAdditionalRRSGauge)
+	registry.MustRegister(probeDNSQuerySucceeded)
+
 	qc := uint16(dns.ClassINET)
 	if module.DNS.QueryClass != "" {
 		var ok bool
@@ -371,6 +377,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, moduleName string) b
 			Name: "probe_dns_serial",
 			Help: "Returns the serial number of the zone",
 		})
+		registry.MustRegister(probeDNSSOAGauge)
 
 		for _, a := range response.Answer {
 			if soa, ok := a.(*dns.SOA); ok {
