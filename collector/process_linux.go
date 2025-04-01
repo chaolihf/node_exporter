@@ -182,6 +182,10 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 		isSendAll = false
 	}
 	allProcessInfo, designedProcess, err = getAllProcess(ch, collector, isSendAll)
+	//指定进程按pid从小到大排序
+	sort.Slice(designedProcess, func(i, j int) bool {
+		return designedProcess[i].pid < designedProcess[j].pid
+	})
 	if err != nil {
 		ch <- createSuccessMetric("process", 0)
 		return err
@@ -676,6 +680,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 	if collecType == 0 {
 		return nil, nil, nil
 	} else {
+		//根据pid从小到大排序获取所有进程信息
 		allProcess, err := process.Processes()
 		if err != nil {
 			logger.Log(err.Error())
@@ -705,7 +710,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 				//判断是否指定进程
 				if commands != nil {
 					for _, designedCommand := range commands {
-						// 遍历每个进程名称
+						// 遍历每个进程名称，根据pid顺序进行遍历
 						for _, p := range allProcess {
 							command, err := p.Cmdline()
 							if err != nil {
