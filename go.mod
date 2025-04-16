@@ -40,7 +40,7 @@ require (
 	github.com/prometheus-community/go-runit v0.1.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/prometheus/client_model v0.6.1
-	github.com/prometheus/common v0.44.0
+	github.com/prometheus/common v0.63.0
 	github.com/prometheus/exporter-toolkit v0.10.0
 	github.com/prometheus/procfs v0.16.0
 	github.com/safchain/ethtool v0.3.0
@@ -105,3 +105,5 @@ require (
 )
 
 replace ascend-common => ../ascend-common
+
+replace github.com/prometheus/common => github.com/prometheus/common v0.44.0
