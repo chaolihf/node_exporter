@@ -25,12 +25,13 @@ import (
 
 	"ascend-common/common-utils/hwlog"
 	"ascend-common/common-utils/utils"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 
 	"github.com/chaolihf/node_exporter/collector/huawei-collector/container/isula"
-	"github.com/chaolihf/node_exporter/collector/huawei-collector/container/v1"
+	v1 "github.com/chaolihf/node_exporter/collector/huawei-collector/container/v1"
 	"github.com/chaolihf/node_exporter/collector/huawei-utils/logger"
 )
 
