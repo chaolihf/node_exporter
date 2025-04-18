@@ -1,23 +1,19 @@
 package collector
 
 import (
+	"ascend-common/common-utils/cache"
 	"ascend-common/common-utils/hwlog"
 	"ascend-common/devmanager"
+	"ascend-common/devmanager/common"
 	nvidiaLog "log"
 	"os"
 	"strconv"
 	"time"
 
-	// "ascend-common/common-utils/hwlog"
-
 	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	huaweiLog "github.com/chaolihf/node_exporter/collector/huawei-utils/logger"
 	versions "github.com/chaolihf/node_exporter/collector/huawei-versions"
 
-	// "github.com/chaolihf/node_exporter/collector/huawei-collector/common"
-	// "github.com/chaolihf/node_exporter/collector/huawei-collector/container"
-
-	colcommon "github.com/chaolihf/node_exporter/collector/huawei-collector/common"
 	"github.com/chaolihf/node_exporter/collector/huawei-collector/container"
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
@@ -33,7 +29,8 @@ var (
 	containerMode = ""
 	containerd    = ""
 	endpoint      = ""
-	n             *CollectorForPrometheus
+	chipListCache []HuaWeiAIChip
+	dmgr          *devmanager.DeviceManager
 )
 
 const (
@@ -71,7 +68,7 @@ func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
 			jsonGpuCollectInfo := jsonConfigInfos.GetJsonObject("gpuCollect")
 			enable := jsonGpuCollectInfo.GetBool("enable")
 			gpuType := jsonGpuCollectInfo.GetString("gpuType")
-			//如果采集华为GPU，则需要初始化collector
+			//如果采集华为GPU，则需要初始化collector获取芯片列表
 			if gpuType == "huawei" {
 				dmgr, err := devmanager.AutoInit("")
 				if err != nil {
@@ -86,11 +83,14 @@ func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
 				if err := deviceParser.Init(); err != nil {
 					huaweiLog.Errorf("failed to init devices parser: %v", err)
 				}
-				deviceParser.Timeout = time.Duration(60) * time.Second
-				colcommon.Collector = colcommon.NewNpuCollector(65*time.Second, time.Duration(60)*time.Second, deviceParser, dmgr)
-				n = &CollectorForPrometheus{
-					collector: colcommon.Collector,
+				CommonCollector := &NpuCollector{
+					cache:         cache.New(128),
+					cacheTime:     65 * time.Second,
+					updateTime:    60 * time.Second,
+					devicesParser: deviceParser,
+					Dmgr:          dmgr,
 				}
+				chipListCache = getChipListCache(*CommonCollector)
 			}
 			return &GpuInfoCollector{
 				enable:  enable,
@@ -135,11 +135,10 @@ func readCntMonitoringFlags() container.CntNpuMonitorOpts {
 func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 	if collector.enable {
 		if collector.gpuType == "huawei" {
-			//开始采集相关显卡指标
-			containerMap := colcommon.GetContainerNPUInfo(n.collector)
-			chips := colcommon.GetChipListWithVNPU(n.collector)
-			collectChain(ch, n, containerMap, chips, colcommon.ChainForSingleGoroutine)
-			collectChain(ch, n, containerMap, chips, colcommon.ChainForMultiGoroutine)
+			metrics := collectHuaweiMetric()
+			for _, metric := range metrics {
+				ch <- metric
+			}
 		} else if collector.gpuType == "nvidia" {
 			metrics := collectNvidiaMetric()
 			for _, metric := range metrics {
@@ -153,19 +152,20 @@ func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 	return nil
 }
 
-type CollectorForPrometheus struct {
-	collector *colcommon.NpuCollector
-}
-
-func collectChain(ch chan<- prometheus.Metric, n *CollectorForPrometheus, containerMap map[int32]container.DevicesInfo,
-	chips []colcommon.HuaWeiAIChip, chain []colcommon.MetricsCollector) {
-	if ch == nil {
-		logger.Log("ch is nil")
-		return
+func collectHuaweiMetric() []prometheus.Metric {
+	var metrics []prometheus.Metric
+	i := 0
+	//获取每一张卡的信息
+	for _, chip := range chipListCache {
+		hbmInfo, err := dmgr.GetDeviceHbmInfo(chip.LogicID)
+		if err != nil {
+			huaweiLog.Errorf("get npu hbm info failed, err is : %v", err)
+		}
+		memoryUsedMetric := creatMemoryMetric(strconv.Itoa(i), chip.VDieID, strconv.FormatUint(hbmInfo.MemorySize, 10), float64(hbmInfo.Usage))
+		metrics = append(metrics, memoryUsedMetric)
+		i++
 	}
-	for _, collector := range chain {
-		collector.UpdatePrometheus(ch, n.collector, containerMap, chips)
-	}
+	return metrics
 }
 
 func collectNvidiaMetric() []prometheus.Metric {
@@ -216,6 +216,68 @@ func collectNvidiaMetric() []prometheus.Metric {
 		metrics = append(metrics, gpuUtilizationMetric, memoryUtilizationMetric, memoryUsedMetric)
 	}
 	return metrics
+}
+
+// NpuCollector for collect metrics
+type NpuCollector struct {
+	cache         *cache.ConcurrencyLRUCache
+	devicesParser *container.DevicesParser
+	updateTime    time.Duration
+	cacheTime     time.Duration
+	Dmgr          *devmanager.DeviceManager
+}
+
+// HuaWeiAIChip chip info
+type HuaWeiAIChip struct {
+
+	// CardId npu card id
+	CardId int32 `json:"card_id"`
+	// PhyId npu chip phy id
+	PhyId int32 `json:"phy_id"`
+	// DeviceID the chip physic ID
+	DeviceID int32 `json:"device_id"`
+	// the chip logic ID
+	LogicID int32 `json:"logic_id"`
+	// VDieID the vdie id
+	VDieID string `json:"vdie_id"`
+	// MainBoardId main board id , used to distinguish between A900A3SuperPod and A9000A3SuperPod
+	MainBoardId uint32
+	// ChipInfo the chip info
+	ChipInfo *common.ChipInfo `json:"chip_info"`
+	// BoardInfo board info of device, but not display
+	BoardInfo *common.BoardInfo
+
+	// VDevActivityInfo the activity virtual device info
+	VDevActivityInfo *common.VDevActivityInfo `json:"v_dev_activity_info"`
+	// VDevInfos the virtual device info
+	VDevInfos *common.VirtualDevInfo `json:"v_dev_infos"`
+	// PCIeBusInfo bus info
+	PCIeBusInfo string
+}
+
+func getChipListCache(n NpuCollector) []HuaWeiAIChip {
+	obj, err := n.cache.Get("npu-exporter-npu-list")
+	if err != nil {
+		huaweiLog.Errorf("get npu chip list from cache failed,err is : %v", err)
+		return make([]HuaWeiAIChip, 0)
+	}
+	if obj == nil {
+		huaweiLog.LogfWithOptions(huaweiLog.ErrorLevel, huaweiLog.LogOptions{Domain: "getChipListCache"},
+			"there is no chip list info in cache,please check collect logs")
+		return make([]HuaWeiAIChip, 0)
+	}
+
+	chipList, ok := obj.([]HuaWeiAIChip)
+	if !ok {
+		huaweiLog.Errorf("error npu chip info cache and convert failed,real type is (%T)", obj)
+		n.cache.Delete("npu-exporter-npu-list")
+		return make([]HuaWeiAIChip, 0)
+	}
+	// if cache is empty or nil, return empty list
+	if len(chipList) == 0 {
+		return make([]HuaWeiAIChip, 0)
+	}
+	return chipList
 }
 
 /*
