@@ -25,7 +25,7 @@ require (
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hodgesds/perf-utils v0.7.0
 	github.com/illumos/go-kstat v0.0.0-20210513183136-173c9b0a9973
-	github.com/influxdata/telegraf v1.34.2
+	github.com/influxdata/telegraf v1.28.3
 	github.com/josharian/native v1.1.0
 	github.com/jsimonetti/rtnetlink v1.3.5
 	github.com/lufia/iostat v1.2.1
@@ -37,11 +37,11 @@ require (
 	github.com/opencontainers/selinux v1.11.0
 	github.com/pkg/sftp v1.13.9
 	github.com/prometheus-community/go-runit v0.1.0
-	github.com/prometheus/client_golang v1.21.1
+	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.63.0
 	github.com/prometheus/exporter-toolkit v0.10.0
-	github.com/prometheus/procfs v0.16.0
+	github.com/prometheus/procfs v0.11.1
 	github.com/safchain/ethtool v0.3.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.37.0
@@ -60,6 +60,7 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dennwc/ioctl v1.0.0 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
@@ -70,9 +71,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20241029153458-d1b30febd7db // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
-	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20240226150601-1dcf7310316a // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mdlayher/genetlink v1.3.2 // indirect
