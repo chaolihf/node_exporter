@@ -24,10 +24,12 @@ import (
 	"time"
 
 	"github.com/prometheus/procfs"
+	"go.uber.org/zap"
 )
 
 var (
 	binary = filepath.Join(os.Getenv("GOPATH"), "bin/node_exporter")
+	logger *zap.Logger
 )
 
 const (
@@ -154,5 +156,5 @@ func runCommandAndTests(cmd *exec.Cmd, address string, fn func(pid int) error) e
 }
 
 func TestNodeExporter(t *testing.T) {
-	Main()
+	Main(logger)
 }

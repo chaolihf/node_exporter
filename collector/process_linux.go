@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chaolihf/gopsutil/process"
@@ -181,6 +182,10 @@ func (collector *ProcessCollector) Update(ch chan<- prometheus.Metric) error {
 		isSendAll = false
 	}
 	allProcessInfo, designedProcess, err = getAllProcess(ch, collector, isSendAll)
+	//指定进程按pid从小到大排序
+	sort.Slice(designedProcess, func(i, j int) bool {
+		return designedProcess[i].pid < designedProcess[j].pid
+	})
 	if err != nil {
 		ch <- createSuccessMetric("process", 0)
 		return err
@@ -663,6 +668,8 @@ func createDesignedProcessMetric(item *DesignedProcessInfo, metricType int) prom
 	return metric
 }
 
+var mu sync.Mutex
+
 /*
 get all process and sort by pid
 @return 获取进程信息
@@ -673,6 +680,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 	if collecType == 0 {
 		return nil, nil, nil
 	} else {
+		//根据pid从小到大排序获取所有进程信息
 		allProcess, err := process.Processes()
 		if err != nil {
 			logger.Log(err.Error())
@@ -683,6 +691,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 				for _, process1 := range allProcess {
 					//获取当前新进程的PID
 					processPid := process1.Pid
+					mu.Lock()
 					if oldProcess, ok := processMap[processPid]; ok {
 						processInfo, lastProcess := getProccessInfo(oldProcess)
 						newProcesses = append(newProcesses, processInfo)
@@ -692,6 +701,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 						newProcesses = append(newProcesses, processInfo)
 						processMap[processPid] = lastProcess
 					}
+					mu.Unlock()
 				}
 				return newProcesses, nil, nil
 			} else if collecType == 2 {
@@ -700,7 +710,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 				//判断是否指定进程
 				if commands != nil {
 					for _, designedCommand := range commands {
-						// 遍历每个进程名称
+						// 遍历每个进程名称，根据pid顺序进行遍历
 						for _, p := range allProcess {
 							command, err := p.Cmdline()
 							if err != nil {
@@ -710,6 +720,7 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 							if strings.Contains(command, designedCommand) {
 								processPid := p.Pid
 								if processMap != nil {
+									mu.Lock()
 									if _, ok := processMap[processPid]; ok {
 										p = processMap[processPid]
 										processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
@@ -720,11 +731,14 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 										designedProcessResult = append(designedProcessResult, processInfo)
 										processMap[processPid] = lastProcess
 									}
+									mu.Unlock()
 								} else {
+									mu.Lock()
 									processMap = make(map[int32]*process.Process)
 									processInfo, lastProcess := getDesignedProccessInfo(p, collector, designedCommand)
 									designedProcessResult = append(designedProcessResult, processInfo)
 									processMap[processPid] = lastProcess
+									mu.Unlock()
 								}
 							}
 						}
@@ -739,15 +753,19 @@ func getAllProcess(ch chan<- prometheus.Metric, collector *ProcessCollector, isS
 					processPid := process1.Pid
 					//若该pid存在于先前的map中
 					if _, ok := processMap[processPid]; ok {
+						mu.Lock()
 						//根据pid获取进程
 						process1 = processMap[processPid]
 						processInfo, lastProcess := getProccessInfo(process1)
 						newProcesses = append(newProcesses, processInfo)
 						processMap[processPid] = lastProcess
+						mu.Unlock()
 					} else {
 						processInfo, lastProcess := getProccessInfo(process1)
 						newProcesses = append(newProcesses, processInfo)
+						mu.Lock()
 						processMap[processPid] = lastProcess
+						mu.Unlock()
 					}
 				}
 				designedProcessResult := []DesignedProcessInfo{}
