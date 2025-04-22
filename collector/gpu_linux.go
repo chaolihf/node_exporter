@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	nvidiaLog "log/slog"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -229,7 +228,6 @@ type NvidiaExporter struct {
 	failedScrapesTotal    prometheus.Counter
 	exitCode              prometheus.Gauge
 	gpuInfoDesc           *prometheus.Desc
-	logger                *nvidiaLog.Logger
 	Command               runCmd
 	ctx                   context.Context //nolint:containedctx
 }
@@ -627,7 +625,7 @@ func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 			collector.nvidiaExporter.sendMetric(ch, collector.nvidiaExporter.exitCode)
 
 			if err != nil {
-				collector.nvidiaExporter.logger.Error("failed to collect metrics", "err", err)
+				logger.Log("failed to collect metrics", "err", err)
 
 				ch <- collector.nvidiaExporter.failedScrapesTotal
 				collector.nvidiaExporter.failedScrapesTotal.Inc()
@@ -650,7 +648,7 @@ func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 					1, uuid, name, driverModelCurrent,
 					driverModelPending, vBiosVersion, driverVersion)
 				if infoMetricErr != nil {
-					collector.nvidiaExporter.logger.Error("failed to create info metric", "err", infoMetricErr)
+					logger.Log("failed to create info metric", "err", infoMetricErr)
 
 					continue
 				}
@@ -662,7 +660,7 @@ func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 
 					num, numErr := TransformRawValue(currentCell.RawValue, metricInfo.ValueMultiplier)
 					if numErr != nil {
-						collector.nvidiaExporter.logger.Debug("failed to transform raw value", "err", numErr, "query_field_name",
+						logger.Log("failed to transform raw value", "err", numErr, "query_field_name",
 							currentCell.QField, "raw_value", currentCell.RawValue)
 
 						continue
@@ -675,7 +673,7 @@ func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 						uuid,
 					)
 					if metricErr != nil {
-						collector.nvidiaExporter.logger.Error("failed to create metric", "err", metricErr, "query_field_name",
+						logger.Log("failed to create metric", "err", metricErr, "query_field_name",
 							currentCell.QField, "raw_value", currentCell.RawValue)
 
 						continue
@@ -901,7 +899,7 @@ func parseCSVLine(line string) []string {
 func (e *NvidiaExporter) sendMetric(metricCh chan<- prometheus.Metric, metric prometheus.Metric) {
 	select {
 	case <-e.ctx.Done():
-		e.logger.Info("context done, return")
+		logger.Log("context done, return")
 
 		return
 	case metricCh <- metric:
