@@ -28,9 +28,11 @@ import (
 
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
+	"go.uber.org/zap"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
+	"github.com/chaolihf/node_exporter/exporters/dns"
 	"github.com/chaolihf/node_exporter/exporters/firewall"
 	"github.com/chaolihf/node_exporter/exporters/gpu"
 	"github.com/chaolihf/node_exporter/exporters/hadoop"
@@ -66,7 +68,11 @@ var (
 	enableSwitchExporter   bool = false
 	enableFirewallExporter bool = false
 	enableBlackBoxExporter bool = false
+<<<<<<< HEAD
 	enableGpuExporter      bool = false
+=======
+	enableDnsExporter      bool = false
+>>>>>>> 4c7783feaaef2c305f8b4e391c0d2915175ba390
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -183,8 +189,13 @@ func initReadConfig() error {
 					enableFirewallExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "blackbox_exporter" {
 					enableBlackBoxExporter = true
+<<<<<<< HEAD
 				} else if jsonModuleInfo.GetStringValue() == "gpu_exporter" {
 					enableGpuExporter = true
+=======
+				} else if jsonModuleInfo.GetStringValue() == "dns_exporter" {
+					enableDnsExporter = true
+>>>>>>> 4c7783feaaef2c305f8b4e391c0d2915175ba390
 				}
 			}
 		}
@@ -192,7 +203,19 @@ func initReadConfig() error {
 	return nil
 }
 
-func Main() {
+func Main(fileLogger *zap.Logger) {
+
+	defer func() {
+		fileLogger.Sync()
+		if r := recover(); r != nil {
+			fileLogger.Info(fmt.Sprintf("node_exporter退出原因:", r))
+			fmt.Println("node_exporter退出原因:", r)
+		} else {
+			fileLogger.Info("node_exporter正常退出")
+			fmt.Println("node_exporter正常退出")
+		}
+	}()
+
 	var (
 		//修改默认路径
 		metricsPath = kingpin.Flag(
@@ -297,11 +320,19 @@ func Main() {
 		})
 		icmp.SetLogger(logger)
 	}
+<<<<<<< HEAD
 	if enableGpuExporter {
 		http.HandleFunc("/gpuMetrics", func(w http.ResponseWriter, r *http.Request) {
 			gpu.RequestHandler(w, r)
 		})
 		gpu.SetLogger(logger)
+=======
+	if enableDnsExporter {
+		http.HandleFunc("/dnsMetrics", func(w http.ResponseWriter, r *http.Request) {
+			dns.RequestHandler(w, r)
+		})
+		dns.SetLogger(logger)
+>>>>>>> 4c7783feaaef2c305f8b4e391c0d2915175ba390
 	}
 
 	tlsconf := &tls.Config{

@@ -1,6 +1,7 @@
 package hadoop
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	stdlog "log"
@@ -84,6 +85,8 @@ func getJmxInfo(url string, modulePrefix string, isShowAll bool) []prometheus.Me
 
 func ParseContent(content []byte, modulePrefix string, isShowAll bool) []prometheus.Metric {
 	var metrics []prometheus.Metric
+	// 替换NaN为0，因为prometheus不支持NaN
+	content = bytes.Replace(content, []byte("NaN"), []byte("0"), -1)
 	jsonInfo, _ := jjson.FromBytes(content)
 	beanInfos := jsonInfo.GetJsonArray("beans")
 	var keySet = make(map[string][]string)
