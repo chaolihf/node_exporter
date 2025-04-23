@@ -68,11 +68,8 @@ var (
 	enableSwitchExporter   bool = false
 	enableFirewallExporter bool = false
 	enableBlackBoxExporter bool = false
-<<<<<<< HEAD
 	enableGpuExporter      bool = false
-=======
 	enableDnsExporter      bool = false
->>>>>>> 4c7783feaaef2c305f8b4e391c0d2915175ba390
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -189,13 +186,10 @@ func initReadConfig() error {
 					enableFirewallExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "blackbox_exporter" {
 					enableBlackBoxExporter = true
-<<<<<<< HEAD
 				} else if jsonModuleInfo.GetStringValue() == "gpu_exporter" {
 					enableGpuExporter = true
-=======
 				} else if jsonModuleInfo.GetStringValue() == "dns_exporter" {
 					enableDnsExporter = true
->>>>>>> 4c7783feaaef2c305f8b4e391c0d2915175ba390
 				}
 			}
 		}
@@ -320,19 +314,19 @@ func Main(fileLogger *zap.Logger) {
 		})
 		icmp.SetLogger(logger)
 	}
-<<<<<<< HEAD
+
 	if enableGpuExporter {
 		http.HandleFunc("/gpuMetrics", func(w http.ResponseWriter, r *http.Request) {
 			gpu.RequestHandler(w, r)
 		})
 		gpu.SetLogger(logger)
-=======
+	}
 	if enableDnsExporter {
 		http.HandleFunc("/dnsMetrics", func(w http.ResponseWriter, r *http.Request) {
 			dns.RequestHandler(w, r)
 		})
 		dns.SetLogger(logger)
->>>>>>> 4c7783feaaef2c305f8b4e391c0d2915175ba390
+
 	}
 
 	tlsconf := &tls.Config{
