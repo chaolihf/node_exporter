@@ -1,16 +1,62 @@
+# linters:
+#   enable:
+#     - misspell
+#     - revive
+#   disable:
+#     # Disable soon to deprecated[1] linters that lead to false
+#     # positives when build tags disable certain files[2]
+#     # 1: https://github.com/golangci/golangci-lint/issues/1841
+#     # 2: https://github.com/prometheus/node_exporter/issues/1545
+#     - deadcode
+#     - unused
+#     - structcheck
+#     - varcheck
+
+# issues:
+#   exclude-rules:
+#     - path: _test.go
+#       linters:
+#         - errcheck
+
+# linters-settings:
+#   errcheck:
+#     exclude-functions:
+#       # Used in HTTP handlers, any error is handled by the server itself.
+#       - (net/http.ResponseWriter).Write
+#       # Never check for logger errors.
+#       - (github.com/go-kit/log.Logger).Log
+#   revive:
+#     rules:
+#       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unused-parameter
+#       - name: unused-parameter
+#         severity: warning
+#         disabled: true
+
+
+version: "2"
+
 linters:
   enable:
     - misspell
     - revive
+  default: all
   disable:
-    # Disable soon to deprecated[1] linters that lead to false
-    # positives when build tags disable certain files[2]
-    # 1: https://github.com/golangci/golangci-lint/issues/1841
-    # 2: https://github.com/prometheus/node_exporter/issues/1545
+    # 现有配置中的禁用规则
     - deadcode
     - unused
     - structcheck
     - varcheck
+    # 新配置中的禁用规则
+    - depguard # breaking things: @atc0005/go-ci/issues/1024
+    - err113 # no need to wrap all errors, too much work
+    - exhaustruct # pointless
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
 
 issues:
   exclude-rules:
@@ -31,3 +77,17 @@ linters-settings:
       - name: unused-parameter
         severity: warning
         disabled: true
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - localmodule
