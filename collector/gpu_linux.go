@@ -896,13 +896,13 @@ func parseCSVLine(line string) []string {
 	return result
 }
 
-func (e *NvidiaExporter) sendMetric(metricCh chan<- prometheus.Metric, metric prometheus.Metric) {
+func (e *NvidiaExporter) sendMetric(ch chan<- prometheus.Metric, metric prometheus.Metric) {
 	select {
 	case <-e.ctx.Done():
 		logger.Log("context done, return")
 
 		return
-	case metricCh <- metric:
+	case ch <- metric:
 	}
 }
 
