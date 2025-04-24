@@ -7,206 +7,43 @@ import (
 	// "ascend-common/devmanager/common"
 
 	"bytes"
-	"context"
-	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
-	"regexp"
-	"slices"
 	"strconv"
 	"strings"
-	"sync"
 
 	// huaweiLog "github.com/chaolihf/node_exporter/collector/huawei-utils/logger"
 	// versions "github.com/chaolihf/node_exporter/collector/huawei-versions"
 
 	// "github.com/chaolihf/node_exporter/collector/huawei-collector/container"
-	"maps"
 
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
 )
 
 func init() {
 	registerCollector("gpu", true, newGpuInfoCollector)
 }
 
-type requiredField struct {
-	qField QField
-	label  string
-}
+// type requiredField struct {
+// 	qField QField
+// 	label  string
+// }
 
-var (
-	matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-	matchAllCap   = regexp.MustCompile("([a-z0-9])([A-Z])")
-	//nolint:gochecknoglobals
-	defaultRunCmd = func(cmd *exec.Cmd) error {
-		err := cmd.Run()
-		if err != nil {
-			return fmt.Errorf("error running command: %w", err)
-		}
-
-		return nil
-	}
-	numericRegex = regexp.MustCompile(`[+-]?(\d*[.])?\d+`)
-	//nolint:gochecknoglobals
-	requiredFields = []requiredField{
-		{qField: uuidQField, label: "uuid"},
-		{qField: nameQField, label: "name"},
-		{qField: driverModelCurrentQField, label: "driver_model_current"},
-		{qField: driverModelPendingQField, label: "driver_model_pending"},
-		{qField: vBiosVersionQField, label: "vbios_version"},
-		{qField: driverVersionQField, label: "driver_version"},
-	}
-	fieldRegex = regexp.MustCompile(`(?m)\n\s*\n^"([^"]+)"`)
-	//nolint:gochecknoglobals
-	fallbackQFieldToRFieldMap = map[QField]RField{
-		"timestamp":                         "timestamp",
-		"driver_version":                    "driver_version",
-		"count":                             "count",
-		"name":                              "name",
-		"serial":                            "serial",
-		"uuid":                              "uuid",
-		"pci.bus_id":                        "pci.bus_id",
-		"pci.domain":                        "pci.domain",
-		"pci.bus":                           "pci.bus",
-		"pci.device":                        "pci.device",
-		"pci.device_id":                     "pci.device_id",
-		"pci.sub_device_id":                 "pci.sub_device_id",
-		"pcie.link.gen.current":             "pcie.link.gen.current",
-		"pcie.link.gen.max":                 "pcie.link.gen.max",
-		"pcie.link.width.current":           "pcie.link.width.current",
-		"pcie.link.width.max":               "pcie.link.width.max",
-		"index":                             "index",
-		"display_mode":                      "display_mode",
-		"display_active":                    "display_active",
-		"persistence_mode":                  "persistence_mode",
-		"accounting.mode":                   "accounting.mode",
-		"accounting.buffer_size":            "accounting.buffer_size",
-		"driver_model.current":              "driver_model.current",
-		"driver_model.pending":              "driver_model.pending",
-		"vbios_version":                     "vbios_version",
-		"inforom.img":                       "inforom.img",
-		"inforom.oem":                       "inforom.oem",
-		"inforom.ecc":                       "inforom.ecc",
-		"inforom.pwr":                       "inforom.pwr",
-		"gom.current":                       "gom.current",
-		"gom.pending":                       "gom.pending",
-		"fan.speed":                         "fan.speed [%]",
-		"pstate":                            "pstate",
-		"clocks_throttle_reasons.supported": "clocks_throttle_reasons.supported",
-		"clocks_throttle_reasons.active":    "clocks_throttle_reasons.active",
-		"clocks_throttle_reasons.gpu_idle":  "clocks_throttle_reasons.gpu_idle",
-		"clocks_throttle_reasons.applications_clocks_setting": "clocks_throttle_reasons.applications_clocks_setting",
-		"clocks_throttle_reasons.sw_power_cap":                "clocks_throttle_reasons.sw_power_cap",
-		"clocks_throttle_reasons.hw_slowdown":                 "clocks_throttle_reasons.hw_slowdown",
-		"clocks_throttle_reasons.hw_thermal_slowdown":         "clocks_throttle_reasons.hw_thermal_slowdown",
-		"clocks_throttle_reasons.hw_power_brake_slowdown":     "clocks_throttle_reasons.hw_power_brake_slowdown",
-		"clocks_throttle_reasons.sw_thermal_slowdown":         "clocks_throttle_reasons.sw_thermal_slowdown",
-		"clocks_throttle_reasons.sync_boost":                  "clocks_throttle_reasons.sync_boost",
-		"memory.total":                                        "memory.total [MiB]",
-		"memory.used":                                         "memory.used [MiB]",
-		"memory.free":                                         "memory.free [MiB]",
-		"compute_mode":                                        "compute_mode",
-		"utilization.gpu":                                     "utilization.gpu [%]",
-		"utilization.memory":                                  "utilization.memory [%]",
-		"encoder.stats.sessionCount":                          "encoder.stats.sessionCount",
-		"encoder.stats.averageFps":                            "encoder.stats.averageFps",
-		"encoder.stats.averageLatency":                        "encoder.stats.averageLatency",
-		"ecc.mode.current":                                    "ecc.mode.current",
-		"ecc.mode.pending":                                    "ecc.mode.pending",
-		"ecc.errors.corrected.volatile.device_memory":         "ecc.errors.corrected.volatile.device_memory",
-		"ecc.errors.corrected.volatile.dram":                  "ecc.errors.corrected.volatile.dram",
-		"ecc.errors.corrected.volatile.register_file":         "ecc.errors.corrected.volatile.register_file",
-		"ecc.errors.corrected.volatile.l1_cache":              "ecc.errors.corrected.volatile.l1_cache",
-		"ecc.errors.corrected.volatile.l2_cache":              "ecc.errors.corrected.volatile.l2_cache",
-		"ecc.errors.corrected.volatile.texture_memory":        "ecc.errors.corrected.volatile.texture_memory",
-		"ecc.errors.corrected.volatile.cbu":                   "ecc.errors.corrected.volatile.cbu",
-		"ecc.errors.corrected.volatile.sram":                  "ecc.errors.corrected.volatile.sram",
-		"ecc.errors.corrected.volatile.total":                 "ecc.errors.corrected.volatile.total",
-		"ecc.errors.corrected.aggregate.device_memory":        "ecc.errors.corrected.aggregate.device_memory",
-		"ecc.errors.corrected.aggregate.dram":                 "ecc.errors.corrected.aggregate.dram",
-		"ecc.errors.corrected.aggregate.register_file":        "ecc.errors.corrected.aggregate.register_file",
-		"ecc.errors.corrected.aggregate.l1_cache":             "ecc.errors.corrected.aggregate.l1_cache",
-		"ecc.errors.corrected.aggregate.l2_cache":             "ecc.errors.corrected.aggregate.l2_cache",
-		"ecc.errors.corrected.aggregate.texture_memory":       "ecc.errors.corrected.aggregate.texture_memory",
-		"ecc.errors.corrected.aggregate.cbu":                  "ecc.errors.corrected.aggregate.cbu",
-		"ecc.errors.corrected.aggregate.sram":                 "ecc.errors.corrected.aggregate.sram",
-		"ecc.errors.corrected.aggregate.total":                "ecc.errors.corrected.aggregate.total",
-		"ecc.errors.uncorrected.volatile.device_memory":       "ecc.errors.uncorrected.volatile.device_memory",
-		"ecc.errors.uncorrected.volatile.dram":                "ecc.errors.uncorrected.volatile.dram",
-		"ecc.errors.uncorrected.volatile.register_file":       "ecc.errors.uncorrected.volatile.register_file",
-		"ecc.errors.uncorrected.volatile.l1_cache":            "ecc.errors.uncorrected.volatile.l1_cache",
-		"ecc.errors.uncorrected.volatile.l2_cache":            "ecc.errors.uncorrected.volatile.l2_cache",
-		"ecc.errors.uncorrected.volatile.texture_memory":      "ecc.errors.uncorrected.volatile.texture_memory",
-		"ecc.errors.uncorrected.volatile.cbu":                 "ecc.errors.uncorrected.volatile.cbu",
-		"ecc.errors.uncorrected.volatile.sram":                "ecc.errors.uncorrected.volatile.sram",
-		"ecc.errors.uncorrected.volatile.total":               "ecc.errors.uncorrected.volatile.total",
-		"ecc.errors.uncorrected.aggregate.device_memory":      "ecc.errors.uncorrected.aggregate.device_memory",
-		"ecc.errors.uncorrected.aggregate.dram":               "ecc.errors.uncorrected.aggregate.dram",
-		"ecc.errors.uncorrected.aggregate.register_file":      "ecc.errors.uncorrected.aggregate.register_file",
-		"ecc.errors.uncorrected.aggregate.l1_cache":           "ecc.errors.uncorrected.aggregate.l1_cache",
-		"ecc.errors.uncorrected.aggregate.l2_cache":           "ecc.errors.uncorrected.aggregate.l2_cache",
-		"ecc.errors.uncorrected.aggregate.texture_memory":     "ecc.errors.uncorrected.aggregate.texture_memory",
-		"ecc.errors.uncorrected.aggregate.cbu":                "ecc.errors.uncorrected.aggregate.cbu",
-		"ecc.errors.uncorrected.aggregate.sram":               "ecc.errors.uncorrected.aggregate.sram",
-		"ecc.errors.uncorrected.aggregate.total":              "ecc.errors.uncorrected.aggregate.total",
-		"retired_pages.single_bit_ecc.count":                  "retired_pages.single_bit_ecc.count",
-		"retired_pages.double_bit.count":                      "retired_pages.double_bit.count",
-		"retired_pages.pending":                               "retired_pages.pending",
-		"temperature.gpu":                                     "temperature.gpu",
-		"temperature.memory":                                  "temperature.memory",
-		"power.management":                                    "power.management",
-		"power.draw":                                          "power.draw [W]",
-		"power.limit":                                         "power.limit [W]",
-		"enforced.power.limit":                                "enforced.power.limit [W]",
-		"power.default_limit":                                 "power.default_limit [W]",
-		"power.min_limit":                                     "power.min_limit [W]",
-		"power.max_limit":                                     "power.max_limit [W]",
-		"clocks.current.graphics":                             "clocks.current.graphics [MHz]",
-		"clocks.current.sm":                                   "clocks.current.sm [MHz]",
-		"clocks.current.memory":                               "clocks.current.memory [MHz]",
-		"clocks.current.video":                                "clocks.current.video [MHz]",
-		"clocks.applications.graphics":                        "clocks.applications.graphics [MHz]",
-		"clocks.applications.memory":                          "clocks.applications.memory [MHz]",
-		"clocks.default_applications.graphics":                "clocks.default_applications.graphics [MHz]",
-		"clocks.default_applications.memory":                  "clocks.default_applications.memory [MHz]",
-		"clocks.max.graphics":                                 "clocks.max.graphics [MHz]",
-		"clocks.max.sm":                                       "clocks.max.sm [MHz]",
-		"clocks.max.memory":                                   "clocks.max.memory [MHz]",
-		"mig.mode.current":                                    "mig.mode.current",
-		"mig.mode.pending":                                    "mig.mode.pending",
-	}
-	// chipListCache []HuaWeiAIChip
-	// dmgr          *devmanager.DeviceManager
-)
-
-const (
-	uuidQField               QField = "uuid"
-	nameQField               QField = "name"
-	driverModelCurrentQField QField = "driver_model.current"
-	driverModelPendingQField QField = "driver_model.pending"
-	vBiosVersionQField       QField = "vbios_version"
-	driverVersionQField      QField = "driver_version"
-	qFieldsAuto                     = "AUTO"
-	DefaultQField                   = qFieldsAuto
-	hexToDecimalBase                = 16
-	hexToDecimalUIntBitSize         = 64
-	floatBitSize                    = 64
-)
-
-type runCmd func(cmd *exec.Cmd) error
-
-// QField stands for query field - the field name before the query.
-type QField string
-
-type MetricInfo struct {
-	desc            *prometheus.Desc
-	MType           prometheus.ValueType
-	ValueMultiplier float64
+// GPU 指标的结构体
+type GPUMetrics struct {
+	Index             string
+	UUID              string
+	GPUUtilization    float64
+	MemoryUtilization float64
+	MemoryTotal       float64
+	MemoryUsed        float64
 }
 
 /*
@@ -214,22 +51,10 @@ type MetricInfo struct {
 2. 确认是否启用GPU信息收集器
 */
 type GpuInfoCollector struct {
-	enable         bool
-	gpuType        string
-	nvidiaExporter *NvidiaExporter
-}
-
-type NvidiaExporter struct {
-	mutex                 sync.RWMutex
-	prefix                string
-	qFields               []QField
-	qFieldToMetricInfoMap map[QField]MetricInfo
-	nvidiaSmiCommand      string
-	failedScrapesTotal    prometheus.Counter
-	exitCode              prometheus.Gauge
-	gpuInfoDesc           *prometheus.Desc
-	Command               runCmd
-	ctx                   context.Context //nolint:containedctx
+	enable           bool
+	gpuType          string
+	nvidiaSmiCommand string
+	url              string
 }
 
 func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
@@ -253,7 +78,8 @@ func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
 			enable := jsonGpuCollectInfo.GetBool("enable")
 			gpuType := jsonGpuCollectInfo.GetString("gpuType")
 			nvidiaSmiCommand := jsonGpuCollectInfo.GetString("nvidiaSmiCommand")
-			prefix := jsonGpuCollectInfo.GetString("nvidiaPrefix")
+			url := jsonGpuCollectInfo.GetString("url")
+			// prefix := jsonGpuCollectInfo.GetString("nvidiaPrefix")
 			// //如果采集华为GPU，则需要初始化collector获取芯片列表
 			// if gpuType == "huawei" {
 			// 	dmgr, err := devmanager.AutoInit("")
@@ -279,298 +105,299 @@ func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
 			// 	chipListCache = getChipListCache(*CommonCollector)
 			// }
 			//若采集NVIDIA GPU，则需要初始化nvidia-exporter
-			if gpuType == "nvidia" {
-				ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-				defer cancel()
-				qFieldsOrdered, qFieldToRFieldMap, err := buildQFieldToRFieldMap(
-					logger,
-					DefaultQField,
-					nvidiaSmiCommand,
-					defaultRunCmd,
-				)
-				if err != nil {
-					logger.Log("failed to build query field to returned field map", err)
-					return &GpuInfoCollector{
-						enable: false,
-					}, nil
-				}
-				qFieldToMetricInfoMap := BuildQFieldToMetricInfoMap(prefix, qFieldToRFieldMap, logger)
-				infoLabels := getLabels(requiredFields)
-				nvidiaExporter := &NvidiaExporter{
-					ctx:                   ctx,
-					nvidiaSmiCommand:      nvidiaSmiCommand,
-					qFields:               qFieldsOrdered,
-					qFieldToMetricInfoMap: qFieldToMetricInfoMap,
-					prefix:                prefix,
-					failedScrapesTotal: prometheus.NewCounter(prometheus.CounterOpts{
-						Namespace: prefix,
-						Name:      "failed_scrapes_total",
-						Help:      "Number of failed scrapes",
-					}),
-					exitCode: prometheus.NewGauge(prometheus.GaugeOpts{
-						Namespace: prefix,
-						Name:      "command_exit_code",
-						Help:      "Exit code of the last scrape command",
-					}),
-					gpuInfoDesc: prometheus.NewDesc(
-						prometheus.BuildFQName(prefix, "", "gpu_info"),
-						fmt.Sprintf("A metric with a constant '1' value labeled by gpu %s.",
-							strings.Join(infoLabels, ", ")),
-						infoLabels,
-						nil),
-					Command: defaultRunCmd,
-				}
-				return &GpuInfoCollector{
-					enable:         enable,
-					gpuType:        gpuType,
-					nvidiaExporter: nvidiaExporter,
-				}, nil
-			}
+			// if gpuType == "nvidia" {
+			// 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+			// 	defer cancel()
+			// 	qFieldsOrdered, qFieldToRFieldMap, err := buildQFieldToRFieldMap(
+			// 		logger,
+			// 		DefaultQField,
+			// 		nvidiaSmiCommand,
+			// 		defaultRunCmd,
+			// 	)
+			// 	if err != nil {
+			// 		logger.Log("failed to build query field to returned field map", err)
+			// 		return &GpuInfoCollector{
+			// 			enable: false,
+			// 		}, nil
+			// 	}
+			// 	qFieldToMetricInfoMap := BuildQFieldToMetricInfoMap(prefix, qFieldToRFieldMap, logger)
+			// 	infoLabels := getLabels(requiredFields)
+			// 	nvidiaExporter := &NvidiaExporter{
+			// 		ctx:                   ctx,
+			// 		nvidiaSmiCommand:      nvidiaSmiCommand,
+			// 		qFields:               qFieldsOrdered,
+			// 		qFieldToMetricInfoMap: qFieldToMetricInfoMap,
+			// 		prefix:                prefix,
+			// 		failedScrapesTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			// 			Namespace: prefix,
+			// 			Name:      "failed_scrapes_total",
+			// 			Help:      "Number of failed scrapes",
+			// 		}),
+			// 		exitCode: prometheus.NewGauge(prometheus.GaugeOpts{
+			// 			Namespace: prefix,
+			// 			Name:      "command_exit_code",
+			// 			Help:      "Exit code of the last scrape command",
+			// 		}),
+			// 		gpuInfoDesc: prometheus.NewDesc(
+			// 			prometheus.BuildFQName(prefix, "", "gpu_info"),
+			// 			fmt.Sprintf("A metric with a constant '1' value labeled by gpu %s.",
+			// 				strings.Join(infoLabels, ", ")),
+			// 			infoLabels,
+			// 			nil),
+			// 		Command: defaultRunCmd,
+			// 	}
+			// 	return &GpuInfoCollector{
+			// 		enable:         enable,
+			// 		gpuType:        gpuType,
+			// 	}, nil
+			// }
 			return &GpuInfoCollector{
-				enable:  enable,
-				gpuType: gpuType,
+				enable:           enable,
+				gpuType:          gpuType,
+				nvidiaSmiCommand: nvidiaSmiCommand,
+				url:              url,
 			}, nil
 		}
 	}
 }
 
-func getLabels(reqFields []requiredField) []string {
-	r := make([]string, len(reqFields))
-	for i, reqField := range reqFields {
-		r[i] = reqField.label
-	}
+// func getLabels(reqFields []requiredField) []string {
+// 	r := make([]string, len(reqFields))
+// 	for i, reqField := range reqFields {
+// 		r[i] = reqField.label
+// 	}
 
-	return r
-}
+// 	return r
+// }
 
-func BuildQFieldToMetricInfoMap(
-	prefix string,
-	qFieldtoRFieldMap map[QField]RField,
-	logger log.Logger,
-) map[QField]MetricInfo {
-	result := make(map[QField]MetricInfo)
-	for qField, rField := range qFieldtoRFieldMap {
-		result[qField] = BuildMetricInfo(prefix, rField, logger)
-	}
+// func BuildQFieldToMetricInfoMap(
+// 	prefix string,
+// 	qFieldtoRFieldMap map[QField]RField,
+// 	logger log.Logger,
+// ) map[QField]MetricInfo {
+// 	result := make(map[QField]MetricInfo)
+// 	for qField, rField := range qFieldtoRFieldMap {
+// 		result[qField] = BuildMetricInfo(prefix, rField, logger)
+// 	}
 
-	return result
-}
+// 	return result
+// }
 
-func BuildMetricInfo(prefix string, rField RField, logger log.Logger) MetricInfo {
-	fqName, multiplier := BuildFQNameAndMultiplier(prefix, rField, logger)
-	desc := prometheus.NewDesc(fqName, string(rField), []string{"uuid"}, nil)
+// func BuildMetricInfo(prefix string, rField RField, logger log.Logger) MetricInfo {
+// 	fqName, multiplier := BuildFQNameAndMultiplier(prefix, rField, logger)
+// 	desc := prometheus.NewDesc(fqName, string(rField), []string{"uuid"}, nil)
 
-	return MetricInfo{
-		desc:            desc,
-		MType:           prometheus.GaugeValue,
-		ValueMultiplier: multiplier,
-	}
-}
+// 	return MetricInfo{
+// 		desc:            desc,
+// 		MType:           prometheus.GaugeValue,
+// 		ValueMultiplier: multiplier,
+// 	}
+// }
 
-func ToSnakeCase(str string) string {
-	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
-	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+// func ToSnakeCase(str string) string {
+// 	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
+// 	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
 
-	return strings.ToLower(snake)
-}
+// 	return strings.ToLower(snake)
+// }
 
-func BuildFQNameAndMultiplier(prefix string, rField RField, logger log.Logger) (string, float64) {
-	rFieldStr := string(rField)
-	suffixTransformed := rFieldStr
-	multiplier := 1.0
-	split := strings.Split(rFieldStr, " ")[0]
+// func BuildFQNameAndMultiplier(prefix string, rField RField, logger log.Logger) (string, float64) {
+// 	rFieldStr := string(rField)
+// 	suffixTransformed := rFieldStr
+// 	multiplier := 1.0
+// 	split := strings.Split(rFieldStr, " ")[0]
 
-	switch {
-	case strings.HasSuffix(rFieldStr, " [W]"):
-		suffixTransformed = split + "_watts"
-	case strings.HasSuffix(rFieldStr, " [MHz]"):
-		suffixTransformed = split + "_clock_hz"
-		multiplier = 1000000
-	case strings.HasSuffix(rFieldStr, " [MiB]"):
-		suffixTransformed = split + "_bytes"
-		multiplier = 1048576
-	case strings.HasSuffix(rFieldStr, " [%]"):
-		suffixTransformed = split + "_ratio"
-		multiplier = 0.01
-	case strings.HasSuffix(rFieldStr, " [us]"):
-		suffixTransformed = split + "_seconds"
-		multiplier = 0.000001
-	}
+// 	switch {
+// 	case strings.HasSuffix(rFieldStr, " [W]"):
+// 		suffixTransformed = split + "_watts"
+// 	case strings.HasSuffix(rFieldStr, " [MHz]"):
+// 		suffixTransformed = split + "_clock_hz"
+// 		multiplier = 1000000
+// 	case strings.HasSuffix(rFieldStr, " [MiB]"):
+// 		suffixTransformed = split + "_bytes"
+// 		multiplier = 1048576
+// 	case strings.HasSuffix(rFieldStr, " [%]"):
+// 		suffixTransformed = split + "_ratio"
+// 		multiplier = 0.01
+// 	case strings.HasSuffix(rFieldStr, " [us]"):
+// 		suffixTransformed = split + "_seconds"
+// 		multiplier = 0.000001
+// 	}
 
-	suffixTransformed = strings.ReplaceAll(suffixTransformed, ".", "_")
-	suffixTransformed = ToSnakeCase(suffixTransformed)
+// 	suffixTransformed = strings.ReplaceAll(suffixTransformed, ".", "_")
+// 	suffixTransformed = ToSnakeCase(suffixTransformed)
 
-	if strings.ContainsAny(suffixTransformed, " []") {
-		suffixTransformed = strings.ReplaceAll(suffixTransformed, " [", "_")
-		suffixTransformed = strings.ReplaceAll(suffixTransformed, "]", "")
+// 	if strings.ContainsAny(suffixTransformed, " []") {
+// 		suffixTransformed = strings.ReplaceAll(suffixTransformed, " [", "_")
+// 		suffixTransformed = strings.ReplaceAll(suffixTransformed, "]", "")
 
-		logger.Log("returned field contains unexpected characters, "+
-			"it is parsed it with best effort, but it might get renamed in the future. "+
-			"please report it in the project's issue tracker",
-			"rfield_name", rFieldStr,
-			"parsed_name", suffixTransformed,
-		)
-	}
+// 		logger.Log("returned field contains unexpected characters, "+
+// 			"it is parsed it with best effort, but it might get renamed in the future. "+
+// 			"please report it in the project's issue tracker",
+// 			"rfield_name", rFieldStr,
+// 			"parsed_name", suffixTransformed,
+// 		)
+// 	}
 
-	fqName := prometheus.BuildFQName(prefix, "", suffixTransformed)
+// 	fqName := prometheus.BuildFQName(prefix, "", suffixTransformed)
 
-	return fqName, multiplier
-}
+// 	return fqName, multiplier
+// }
 
-func toQFieldSlice(ss []string) []QField {
-	r := make([]QField, len(ss))
-	for i, s := range ss {
-		r[i] = QField(s)
-	}
+// func toQFieldSlice(ss []string) []QField {
+// 	r := make([]QField, len(ss))
+// 	for i, s := range ss {
+// 		r[i] = QField(s)
+// 	}
 
-	return r
-}
+// 	return r
+// }
 
-func removeDuplicates[T comparable](qFields []T) []T {
-	valMap := make(map[T]struct{})
+// func removeDuplicates[T comparable](qFields []T) []T {
+// 	valMap := make(map[T]struct{})
 
-	var uniques []T
+// 	var uniques []T
 
-	for _, field := range qFields {
-		_, exists := valMap[field]
-		if !exists {
-			uniques = append(uniques, field)
-			valMap[field] = struct{}{}
-		}
-	}
+// 	for _, field := range qFields {
+// 		_, exists := valMap[field]
+// 		if !exists {
+// 			uniques = append(uniques, field)
+// 			valMap[field] = struct{}{}
+// 		}
+// 	}
 
-	return uniques
-}
+// 	return uniques
+// }
 
-func ParseAutoQFields(nvidiaSmiCommand string, command runCmd) ([]QField, error) {
-	cmdAndArgs := strings.Fields(nvidiaSmiCommand)
-	cmdAndArgs = append(cmdAndArgs, "--help-query-gpu")
-	cmd := exec.Command(cmdAndArgs[0], cmdAndArgs[1:]...) //nolint:gosec
+// func ParseAutoQFields(nvidiaSmiCommand string, command runCmd) ([]QField, error) {
+// 	cmdAndArgs := strings.Fields(nvidiaSmiCommand)
+// 	cmdAndArgs = append(cmdAndArgs, "--help-query-gpu")
+// 	cmd := exec.Command(cmdAndArgs[0], cmdAndArgs[1:]...) //nolint:gosec
 
-	var stdout bytes.Buffer
+// 	var stdout bytes.Buffer
 
-	var stderr bytes.Buffer
+// 	var stderr bytes.Buffer
 
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+// 	cmd.Stdout = &stdout
+// 	cmd.Stderr = &stderr
 
-	err := command(cmd)
+// 	err := command(cmd)
 
-	outStr := stdout.String()
-	errStr := stderr.String()
+// 	outStr := stdout.String()
+// 	errStr := stderr.String()
 
-	exitCode := -1
+// 	exitCode := -1
 
-	var exitError *exec.ExitError
-	if errors.As(err, &exitError) {
-		exitCode = exitError.ExitCode()
-	}
+// 	var exitError *exec.ExitError
+// 	if errors.As(err, &exitError) {
+// 		exitCode = exitError.ExitCode()
+// 	}
 
-	if err != nil {
-		return nil, fmt.Errorf(
-			"command failed: code: %d | command: %q | stdout: %q | stderr: %q: %w",
-			exitCode,
-			strings.Join(cmdAndArgs, " "),
-			outStr,
-			errStr,
-			err,
-		)
-	}
+// 	if err != nil {
+// 		return nil, fmt.Errorf(
+// 			"command failed: code: %d | command: %q | stdout: %q | stderr: %q: %w",
+// 			exitCode,
+// 			strings.Join(cmdAndArgs, " "),
+// 			outStr,
+// 			errStr,
+// 			err,
+// 		)
+// 	}
 
-	fields := ExtractQFields(outStr)
-	if fields == nil {
-		return nil, fmt.Errorf(
-			"could not extract any query fields: code: %d | command: %q | stdout: %q | stderr: %q",
-			exitCode,
-			strings.Join(cmdAndArgs, " "),
-			outStr,
-			errStr,
-		)
-	}
+// 	fields := ExtractQFields(outStr)
+// 	if fields == nil {
+// 		return nil, fmt.Errorf(
+// 			"could not extract any query fields: code: %d | command: %q | stdout: %q | stderr: %q",
+// 			exitCode,
+// 			strings.Join(cmdAndArgs, " "),
+// 			outStr,
+// 			errStr,
+// 		)
+// 	}
 
-	return fields, nil
-}
+// 	return fields, nil
+// }
 
-func ExtractQFields(text string) []QField {
-	found := fieldRegex.FindAllStringSubmatch(text, -1)
+// func ExtractQFields(text string) []QField {
+// 	found := fieldRegex.FindAllStringSubmatch(text, -1)
 
-	fields := make([]QField, len(found))
-	for i, ss := range found {
-		fields[i] = QField(ss[1])
-	}
+// 	fields := make([]QField, len(found))
+// 	for i, ss := range found {
+// 		fields[i] = QField(ss[1])
+// 	}
 
-	return fields
-}
+// 	return fields
+// }
 
-func buildQFieldToRFieldMap(logger log.Logger, qFieldsRaw string, nvidiaSmiCommand string,
-	command runCmd,
-) ([]QField, map[QField]RField, error) {
-	qFieldsSeparated := strings.Split(qFieldsRaw, ",")
+// func buildQFieldToRFieldMap(logger log.Logger, qFieldsRaw string, nvidiaSmiCommand string,
+// 	command runCmd,
+// ) ([]QField, map[QField]RField, error) {
+// 	qFieldsSeparated := strings.Split(qFieldsRaw, ",")
 
-	qFields := toQFieldSlice(qFieldsSeparated)
-	for _, reqField := range requiredFields {
-		qFields = append(qFields, reqField.qField)
-	}
+// 	qFields := toQFieldSlice(qFieldsSeparated)
+// 	for _, reqField := range requiredFields {
+// 		qFields = append(qFields, reqField.qField)
+// 	}
 
-	qFields = removeDuplicates(qFields)
+// 	qFields = removeDuplicates(qFields)
 
-	if len(qFieldsSeparated) == 1 && qFieldsSeparated[0] == qFieldsAuto {
-		parsed, err := ParseAutoQFields(nvidiaSmiCommand, command)
-		if err != nil {
-			logger.Log("failed to auto-determine query field names, falling back to the built-in list", err)
+// 	if len(qFieldsSeparated) == 1 && qFieldsSeparated[0] == qFieldsAuto {
+// 		parsed, err := ParseAutoQFields(nvidiaSmiCommand, command)
+// 		if err != nil {
+// 			logger.Log("failed to auto-determine query field names, falling back to the built-in list", err)
 
-			keys := slices.Collect(maps.Keys(fallbackQFieldToRFieldMap))
+// 			keys := slices.Collect(maps.Keys(fallbackQFieldToRFieldMap))
 
-			return keys, fallbackQFieldToRFieldMap, nil
-		}
+// 			return keys, fallbackQFieldToRFieldMap, nil
+// 		}
 
-		qFields = parsed
-	}
+// 		qFields = parsed
+// 	}
 
-	_, resultTable, err := scrape(qFields, nvidiaSmiCommand, command)
+// 	_, resultTable, err := scrape(qFields, nvidiaSmiCommand, command)
 
-	var rFields []RField
+// 	var rFields []RField
 
-	if err != nil {
-		logger.Log(
-			"failed to run the initial scrape, using the built-in list for field mapping",
-			"err",
-			err,
-		)
+// 	if err != nil {
+// 		logger.Log(
+// 			"failed to run the initial scrape, using the built-in list for field mapping",
+// 			"err",
+// 			err,
+// 		)
 
-		rFields, err = getFallbackValues(qFields)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		rFields = resultTable.RFields
-	}
+// 		rFields, err = getFallbackValues(qFields)
+// 		if err != nil {
+// 			return nil, nil, err
+// 		}
+// 	} else {
+// 		rFields = resultTable.RFields
+// 	}
 
-	r := make(map[QField]RField, len(qFields))
-	for i, q := range qFields {
-		r[q] = rFields[i]
-	}
+// 	r := make(map[QField]RField, len(qFields))
+// 	for i, q := range qFields {
+// 		r[q] = rFields[i]
+// 	}
 
-	return qFields, r, nil
-}
+// 	return qFields, r, nil
+// }
 
-func getFallbackValues(qFields []QField) ([]RField, error) {
-	rFields := make([]RField, len(qFields))
+// func getFallbackValues(qFields []QField) ([]RField, error) {
+// 	rFields := make([]RField, len(qFields))
 
-	counter := 0
+// 	counter := 0
 
-	for _, q := range qFields {
-		val, contains := fallbackQFieldToRFieldMap[q]
-		if !contains {
-			return nil, fmt.Errorf("unexpected query field: %q", q)
-		}
+// 	for _, q := range qFields {
+// 		val, contains := fallbackQFieldToRFieldMap[q]
+// 		if !contains {
+// 			return nil, fmt.Errorf("unexpected query field: %q", q)
+// 		}
 
-		rFields[counter] = val
-		counter++
-	}
+// 		rFields[counter] = val
+// 		counter++
+// 	}
 
-	return rFields, nil
-}
+// 	return rFields, nil
+// }
 
 // func readCntMonitoringFlags() container.CntNpuMonitorOpts {
 // 	opts := container.CntNpuMonitorOpts{UserBackUp: true}
@@ -604,6 +431,214 @@ func getFallbackValues(qFields []QField) ([]RField, error) {
 // 	return opts
 // }
 
+// 收集 GPU 指标
+func (collector *GpuInfoCollector) collectGPUMetrics() ([]prometheus.Metric, error) {
+	// 执行 nvidia-smi 命令
+	cmd := exec.Command(collector.nvidiaSmiCommand)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("failed to execute nvidia-smi: %v", err)
+	}
+
+	// 存储所有生成的指标
+	var metrics []prometheus.Metric
+
+	// 创建指标描述符
+	gpuUtilDesc := prometheus.NewDesc(
+		"nvidia_gpu_utilization_ratio",
+		"GPU utilization ratio (0.0 - 1.0)",
+		[]string{"gpu_index", "gpu_uuid", "gpu_memory_total"},
+		nil,
+	)
+
+	memUtilDesc := prometheus.NewDesc(
+		"nvidia_gpu_memory_utilization_ratio",
+		"GPU memory utilization ratio (0.0 - 1.0)",
+		[]string{"gpu_index", "gpu_uuid", "gpu_memory_total"},
+		nil,
+	)
+
+	memUsedDesc := prometheus.NewDesc(
+		"nvidia_gpu_memory_used_bytes",
+		"GPU memory used in bytes",
+		[]string{"gpu_index", "gpu_uuid", "gpu_memory_total"},
+		nil,
+	)
+
+	// 解析输出
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	for _, line := range lines {
+		fields := strings.Split(strings.TrimSpace(line), ", ")
+		if len(fields) != 6 {
+			continue
+		}
+
+		index := fields[0]
+		uuid := fields[1]
+
+		memTotal, _ := strconv.ParseFloat(strings.TrimSuffix(fields[4], " MiB"), 64)
+		memTotalBytes := strconv.FormatFloat(memTotal*1024*1024, 'f', -1, 64) // 转换为字节
+
+		// 解析 GPU 使用率
+		gpuUtil, err := strconv.ParseFloat(strings.TrimSuffix(fields[2], " %"), 64)
+		if err == nil {
+			metrics = append(metrics, prometheus.MustNewConstMetric(
+				gpuUtilDesc,
+				prometheus.GaugeValue,
+				gpuUtil/100.0, // 转换为 0-1 的比率
+				index,
+				uuid,
+				memTotalBytes, // GPU 总内存
+			))
+		}
+
+		// 解析内存使用率
+		memUtil, err := strconv.ParseFloat(strings.TrimSuffix(fields[3], " %"), 64)
+		if err == nil {
+			metrics = append(metrics, prometheus.MustNewConstMetric(
+				memUtilDesc,
+				prometheus.GaugeValue,
+				memUtil/100.0, // 转换为 0-1 的比率
+				index,
+				uuid,
+				memTotalBytes, // GPU 总内存
+			))
+		}
+
+		// 解析已使用内存
+		memUsed, err := strconv.ParseFloat(strings.TrimSuffix(fields[5], " MiB"), 64)
+		if err == nil {
+			metrics = append(metrics, prometheus.MustNewConstMetric(
+				memUsedDesc,
+				prometheus.GaugeValue,
+				memUsed*1024*1024, // 转换为字节
+				index,
+				uuid,
+				memTotalBytes, // GPU 总内存
+			))
+		}
+	}
+
+	return metrics, nil
+}
+
+func (collector *GpuInfoCollector) fetchMetrics() ([]prometheus.Metric, error) {
+	// 发起 HTTP GET 请求
+	resp, err := http.Get(collector.url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch metrics: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// 读取响应内容
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	// 解析指标
+	var parser expfmt.TextParser
+	metricFamilies, err := parser.TextToMetricFamilies(strings.NewReader(string(body)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse metrics: %v", err)
+	}
+
+	// 转换为 prometheus.Metric 切片
+	var metrics []prometheus.Metric
+	for familyName, family := range metricFamilies {
+		for _, m := range family.Metric {
+			metric, err := convertToPrometheusMetric(familyName, family.GetType(), family.GetHelp(), m)
+			if err != nil {
+				fmt.Printf("Error converting metric %s: %v\n", familyName, err)
+				continue
+			}
+			metrics = append(metrics, metric)
+		}
+	}
+
+	return metrics, nil
+}
+
+func convertToPrometheusMetric(name string, metricType dto.MetricType, help string, metric *dto.Metric) (prometheus.Metric, error) {
+	// 创建标签
+	var labelNames []string
+	var labelValues []string
+	for _, label := range metric.Label {
+		labelNames = append(labelNames, label.GetName())
+		labelValues = append(labelValues, label.GetValue())
+	}
+
+	// 创建描述符
+	desc := prometheus.NewDesc(
+		name,
+		help,
+		labelNames,
+		nil,
+	)
+
+	// 根据不同的指标类型创建相应的指标
+	switch metricType {
+	case dto.MetricType_COUNTER:
+		return prometheus.NewConstMetric(
+			desc,
+			prometheus.CounterValue,
+			metric.Counter.GetValue(),
+			labelValues...,
+		)
+
+	case dto.MetricType_GAUGE:
+		return prometheus.NewConstMetric(
+			desc,
+			prometheus.GaugeValue,
+			metric.Gauge.GetValue(),
+			labelValues...,
+		)
+
+	case dto.MetricType_HISTOGRAM:
+		return prometheus.NewConstHistogram(
+			desc,
+			metric.Histogram.GetSampleCount(),
+			metric.Histogram.GetSampleSum(),
+			makeBuckets(metric.Histogram),
+			labelValues...,
+		)
+
+	case dto.MetricType_SUMMARY:
+		return prometheus.NewConstSummary(
+			desc,
+			metric.Summary.GetSampleCount(),
+			metric.Summary.GetSampleSum(),
+			makeQuantiles(metric.Summary),
+			labelValues...,
+		)
+
+	default:
+		return nil, fmt.Errorf("unsupported metric type: %v", metricType)
+	}
+}
+
+func makeBuckets(h *dto.Histogram) map[float64]uint64 {
+	buckets := make(map[float64]uint64, len(h.Bucket))
+	for _, b := range h.Bucket {
+		buckets[b.GetUpperBound()] = b.GetCumulativeCount()
+	}
+	return buckets
+}
+
+func makeQuantiles(s *dto.Summary) map[float64]float64 {
+	quantiles := make(map[float64]float64, len(s.Quantile))
+	for _, q := range s.Quantile {
+		quantiles[q.GetQuantile()] = q.GetValue()
+	}
+	return quantiles
+}
+
 func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 	if collector.enable {
 		if collector.gpuType == "huawei" {
@@ -611,77 +646,92 @@ func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 			// for _, metric := range metrics {
 			// 	ch <- metric
 			// }
+			metrics, err := collector.fetchMetrics()
+			if err != nil {
+				return err
+			}
+			for _, metric := range metrics {
+				ch <- metric
+			}
 		} else if collector.gpuType == "nvidia" {
+			metrics, err := collector.collectGPUMetrics()
+			if err != nil {
+				return err
+			} else {
+				for _, metric := range metrics {
+					ch <- metric
+				}
+			}
 			// metrics := collectNvidiaMetric()
 			// for _, metric := range metrics {
 			// 	ch <- metric
 			// }
-			collector.nvidiaExporter.mutex.Lock()
-			defer collector.nvidiaExporter.mutex.Unlock()
+			// collector.nvidiaExporter.mutex.Lock()
+			// defer collector.nvidiaExporter.mutex.Unlock()
 
-			exitCode, currentTable, err := scrape(collector.nvidiaExporter.qFields, collector.nvidiaExporter.nvidiaSmiCommand, collector.nvidiaExporter.Command)
-			collector.nvidiaExporter.exitCode.Set(float64(exitCode))
+			// exitCode, currentTable, err := scrape(collector.nvidiaExporter.qFields, collector.nvidiaExporter.nvidiaSmiCommand, collector.nvidiaExporter.Command)
+			// collector.nvidiaExporter.exitCode.Set(float64(exitCode))
 
-			collector.nvidiaExporter.sendMetric(ch, collector.nvidiaExporter.exitCode)
+			// collector.nvidiaExporter.sendMetric(ch, collector.nvidiaExporter.exitCode)
 
-			if err != nil {
-				logger.Log("failed to collect metrics", "err", err)
+			// if err != nil {
+			// 	logger.Log("failed to collect metrics", "err", err)
 
-				ch <- collector.nvidiaExporter.failedScrapesTotal
-				collector.nvidiaExporter.failedScrapesTotal.Inc()
+			// 	ch <- collector.nvidiaExporter.failedScrapesTotal
+			// 	collector.nvidiaExporter.failedScrapesTotal.Inc()
 
-				return err
-			}
+			// 	return err
+			// }
 
-			for _, currentRow := range currentTable.Rows {
-				uuid := strings.TrimPrefix(
-					strings.ToLower(currentRow.QFieldToCells[uuidQField].RawValue),
-					"gpu-",
-				)
-				name := currentRow.QFieldToCells[nameQField].RawValue
-				driverModelCurrent := currentRow.QFieldToCells[driverModelCurrentQField].RawValue
-				driverModelPending := currentRow.QFieldToCells[driverModelPendingQField].RawValue
-				vBiosVersion := currentRow.QFieldToCells[vBiosVersionQField].RawValue
-				driverVersion := currentRow.QFieldToCells[driverVersionQField].RawValue
+			// for _, currentRow := range currentTable.Rows {
+			// 	uuid := strings.TrimPrefix(
+			// 		strings.ToLower(currentRow.QFieldToCells[uuidQField].RawValue),
+			// 		"gpu-",
+			// 	)
+			// 	name := currentRow.QFieldToCells[nameQField].RawValue
+			// 	driverModelCurrent := currentRow.QFieldToCells[driverModelCurrentQField].RawValue
+			// 	driverModelPending := currentRow.QFieldToCells[driverModelPendingQField].RawValue
+			// 	vBiosVersion := currentRow.QFieldToCells[vBiosVersionQField].RawValue
+			// 	driverVersion := currentRow.QFieldToCells[driverVersionQField].RawValue
 
-				infoMetric, infoMetricErr := prometheus.NewConstMetric(collector.nvidiaExporter.gpuInfoDesc, prometheus.GaugeValue,
-					1, uuid, name, driverModelCurrent,
-					driverModelPending, vBiosVersion, driverVersion)
-				if infoMetricErr != nil {
-					logger.Log("failed to create info metric", "err", infoMetricErr)
+			// 	infoMetric, infoMetricErr := prometheus.NewConstMetric(collector.nvidiaExporter.gpuInfoDesc, prometheus.GaugeValue,
+			// 		1, uuid, name, driverModelCurrent,
+			// 		driverModelPending, vBiosVersion, driverVersion)
+			// 	if infoMetricErr != nil {
+			// 		logger.Log("failed to create info metric", "err", infoMetricErr)
 
-					continue
-				}
+			// 		continue
+			// 	}
 
-				collector.nvidiaExporter.sendMetric(ch, infoMetric)
+			// 	collector.nvidiaExporter.sendMetric(ch, infoMetric)
 
-				for _, currentCell := range currentRow.Cells {
-					metricInfo := collector.nvidiaExporter.qFieldToMetricInfoMap[currentCell.QField]
+			// 	for _, currentCell := range currentRow.Cells {
+			// 		metricInfo := collector.nvidiaExporter.qFieldToMetricInfoMap[currentCell.QField]
 
-					num, numErr := TransformRawValue(currentCell.RawValue, metricInfo.ValueMultiplier)
-					if numErr != nil {
-						logger.Log("failed to transform raw value", "err", numErr, "query_field_name",
-							currentCell.QField, "raw_value", currentCell.RawValue)
+			// 		num, numErr := TransformRawValue(currentCell.RawValue, metricInfo.ValueMultiplier)
+			// 		if numErr != nil {
+			// 			logger.Log("failed to transform raw value", "err", numErr, "query_field_name",
+			// 				currentCell.QField, "raw_value", currentCell.RawValue)
 
-						continue
-					}
+			// 			continue
+			// 		}
 
-					metric, metricErr := prometheus.NewConstMetric(
-						metricInfo.desc,
-						metricInfo.MType,
-						num,
-						uuid,
-					)
-					if metricErr != nil {
-						logger.Log("failed to create metric", "err", metricErr, "query_field_name",
-							currentCell.QField, "raw_value", currentCell.RawValue)
+			// 		metric, metricErr := prometheus.NewConstMetric(
+			// 			metricInfo.desc,
+			// 			metricInfo.MType,
+			// 			num,
+			// 			uuid,
+			// 		)
+			// 		if metricErr != nil {
+			// 			logger.Log("failed to create metric", "err", metricErr, "query_field_name",
+			// 				currentCell.QField, "raw_value", currentCell.RawValue)
 
-						continue
-					}
+			// 			continue
+			// 		}
 
-					collector.nvidiaExporter.sendMetric(ch, metric)
-				}
-			}
+			// 		collector.nvidiaExporter.sendMetric(ch, metric)
+			// 	}
+			// }
 
 		} else {
 			logger.Log("GPU类型不支持:", collector.gpuType)
@@ -691,220 +741,219 @@ func (collector *GpuInfoCollector) Update(ch chan<- prometheus.Metric) error {
 	return nil
 }
 
-func HexToDecimal(hex string) (float64, error) {
-	s := hex
-	s = strings.ReplaceAll(s, "0x", "")
-	s = strings.ReplaceAll(s, "0X", "")
-	parsed, err := strconv.ParseUint(s, hexToDecimalBase, hexToDecimalUIntBitSize)
+// func HexToDecimal(hex string) (float64, error) {
+// 	s := hex
+// 	s = strings.ReplaceAll(s, "0x", "")
+// 	s = strings.ReplaceAll(s, "0X", "")
+// 	parsed, err := strconv.ParseUint(s, hexToDecimalBase, hexToDecimalUIntBitSize)
 
-	return float64(parsed), err
-}
+// 	return float64(parsed), err
+// }
 
-func TransformRawValue(rawValue string, valueMultiplier float64) (float64, error) {
-	trimmed := strings.TrimSpace(rawValue)
-	if strings.HasPrefix(trimmed, "0x") {
-		decimal, err := HexToDecimal(trimmed)
-		if err != nil {
-			return 0, fmt.Errorf("failed to transform raw value %q: %w", trimmed, err)
-		}
+// func TransformRawValue(rawValue string, valueMultiplier float64) (float64, error) {
+// 	trimmed := strings.TrimSpace(rawValue)
+// 	if strings.HasPrefix(trimmed, "0x") {
+// 		decimal, err := HexToDecimal(trimmed)
+// 		if err != nil {
+// 			return 0, fmt.Errorf("failed to transform raw value %q: %w", trimmed, err)
+// 		}
 
-		return decimal, nil
-	}
+// 		return decimal, nil
+// 	}
 
-	val := strings.ToLower(trimmed)
+// 	val := strings.ToLower(trimmed)
 
-	switch val {
-	case "enabled", "yes", "active":
-		return 1, nil
-	case "disabled", "no", "not active":
-		return 0, nil
-	case "default":
-		return 0, nil
-	case "exclusive_thread":
-		return 1, nil
-	case "prohibited":
-		return 2, nil
-	case "exclusive_process":
-		return 3, nil
-	default:
-		return parseSanitizedValueWithBestEffort(val, valueMultiplier)
-	}
-}
+// 	switch val {
+// 	case "enabled", "yes", "active":
+// 		return 1, nil
+// 	case "disabled", "no", "not active":
+// 		return 0, nil
+// 	case "default":
+// 		return 0, nil
+// 	case "exclusive_thread":
+// 		return 1, nil
+// 	case "prohibited":
+// 		return 2, nil
+// 	case "exclusive_process":
+// 		return 3, nil
+// 	default:
+// 		return parseSanitizedValueWithBestEffort(val, valueMultiplier)
+// 	}
+// }
 
-func parseSanitizedValueWithBestEffort(
-	sanitizedValue string,
-	valueMultiplier float64,
-) (float64, error) {
-	allNums := numericRegex.FindAllString(sanitizedValue, 2) //nolint:mnd
-	if len(allNums) != 1 {
-		return -1, fmt.Errorf("could not parse number from value: %q", sanitizedValue)
-	}
+// func parseSanitizedValueWithBestEffort(
+// 	sanitizedValue string,
+// 	valueMultiplier float64,
+// ) (float64, error) {
+// 	allNums := numericRegex.FindAllString(sanitizedValue, 2) //nolint:mnd
+// 	if len(allNums) != 1 {
+// 		return -1, fmt.Errorf("could not parse number from value: %q", sanitizedValue)
+// 	}
 
-	parsed, err := strconv.ParseFloat(allNums[0], floatBitSize)
-	if err != nil {
-		return -1, fmt.Errorf("failed to parse float %q: %w", allNums[0], err)
-	}
+// 	parsed, err := strconv.ParseFloat(allNums[0], floatBitSize)
+// 	if err != nil {
+// 		return -1, fmt.Errorf("failed to parse float %q: %w", allNums[0], err)
+// 	}
 
-	return parsed * valueMultiplier, nil
-}
+// 	return parsed * valueMultiplier, nil
+// }
 
-type Row struct {
-	QFieldToCells map[QField]Cell
-	Cells         []Cell
-}
+// type Row struct {
+// 	QFieldToCells map[QField]Cell
+// 	Cells         []Cell
+// }
 
-type Cell struct {
-	QField   QField
-	RField   RField
-	RawValue string
-}
+// type Cell struct {
+// 	QField   QField
+// 	RField   RField
+// 	RawValue string
+// }
 
-// RField stands for returned field - the field name as returned by the nvidia-smi.
-type RField string
+// // RField stands for returned field - the field name as returned by the nvidia-smi.
+// type RField string
 
-type Table struct {
-	Rows          []Row
-	RFields       []RField
-	QFieldToCells map[QField][]Cell
-}
+// type Table struct {
+// 	Rows          []Row
+// 	RFields       []RField
+// 	QFieldToCells map[QField][]Cell
+// }
 
-func QFieldSliceToStringSlice(qs []QField) []string {
-	r := make([]string, len(qs))
-	for i, q := range qs {
-		r[i] = string(q)
-	}
+// func QFieldSliceToStringSlice(qs []QField) []string {
+// 	r := make([]string, len(qs))
+// 	for i, q := range qs {
+// 		r[i] = string(q)
+// 	}
 
-	return r
-}
+// 	return r
+// }
 
-func scrape(qFields []QField, nvidiaSmiCommand string, command runCmd) (int, *Table, error) {
-	qFieldsJoined := strings.Join(QFieldSliceToStringSlice(qFields), ",")
+// func scrape(qFields []QField, nvidiaSmiCommand string, command runCmd) (int, *Table, error) {
+// 	qFieldsJoined := strings.Join(QFieldSliceToStringSlice(qFields), ",")
 
-	cmdAndArgs := strings.Fields(nvidiaSmiCommand)
-	cmdAndArgs = append(cmdAndArgs, "--query-gpu="+qFieldsJoined)
-	cmdAndArgs = append(cmdAndArgs, "--format=csv")
+// 	cmdAndArgs := strings.Fields(nvidiaSmiCommand)
+// 	cmdAndArgs = append(cmdAndArgs, "--query-gpu="+qFieldsJoined)
+// 	cmdAndArgs = append(cmdAndArgs, "--format=csv")
 
-	var stdout bytes.Buffer
+// 	var stdout bytes.Buffer
 
-	var stderr bytes.Buffer
+// 	var stderr bytes.Buffer
 
-	cmd := exec.Command(cmdAndArgs[0], cmdAndArgs[1:]...) //nolint:gosec
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+// 	cmd := exec.Command(cmdAndArgs[0], cmdAndArgs[1:]...) //nolint:gosec
+// 	cmd.Stdout = &stdout
+// 	cmd.Stderr = &stderr
 
-	err := command(cmd)
-	if err != nil {
-		exitCode := -1
+// 	err := command(cmd)
+// 	if err != nil {
+// 		exitCode := -1
 
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
-			exitCode = exitError.ExitCode()
-		}
+// 		var exitError *exec.ExitError
+// 		if errors.As(err, &exitError) {
+// 			exitCode = exitError.ExitCode()
+// 		}
 
-		return exitCode, nil, fmt.Errorf(
-			"command failed: code: %d | command: %s | stdout: %s | stderr: %s: %w",
-			exitCode,
-			strings.Join(cmdAndArgs, " "),
-			stdout.String(),
-			stderr.String(),
-			err,
-		)
-	}
+// 		return exitCode, nil, fmt.Errorf(
+// 			"command failed: code: %d | command: %s | stdout: %s | stderr: %s: %w",
+// 			exitCode,
+// 			strings.Join(cmdAndArgs, " "),
+// 			stdout.String(),
+// 			stderr.String(),
+// 			err,
+// 		)
+// 	}
 
-	t, err := ParseCSVIntoTable(strings.TrimSpace(stdout.String()), qFields)
-	if err != nil {
-		return -1, nil, err
-	}
+// 	t, err := ParseCSVIntoTable(strings.TrimSpace(stdout.String()), qFields)
+// 	if err != nil {
+// 		return -1, nil, err
+// 	}
 
-	return 0, &t, nil
-}
+// 	return 0, &t, nil
+// }
 
-func toRFieldSlice(ss []string) []RField {
-	r := make([]RField, len(ss))
-	for i, s := range ss {
-		r[i] = RField(s)
-	}
+// func toRFieldSlice(ss []string) []RField {
+// 	r := make([]RField, len(ss))
+// 	for i, s := range ss {
+// 		r[i] = RField(s)
+// 	}
 
-	return r
-}
+// 	return r
+// }
 
-func ParseCSVIntoTable(queryResult string, qFields []QField) (Table, error) {
-	lines := strings.Split(strings.TrimSpace(queryResult), "\n")
-	titlesLine := lines[0]
-	valuesLines := lines[1:]
-	rFields := toRFieldSlice(parseCSVLine(titlesLine))
+// func ParseCSVIntoTable(queryResult string, qFields []QField) (Table, error) {
+// 	lines := strings.Split(strings.TrimSpace(queryResult), "\n")
+// 	titlesLine := lines[0]
+// 	valuesLines := lines[1:]
+// 	rFields := toRFieldSlice(parseCSVLine(titlesLine))
 
-	numCols := len(qFields)
-	numRows := len(valuesLines)
+// 	numCols := len(qFields)
+// 	numRows := len(valuesLines)
 
-	rows := make([]Row, numRows)
+// 	rows := make([]Row, numRows)
 
-	qFieldToCells := make(map[QField][]Cell)
-	for _, q := range qFields {
-		qFieldToCells[q] = make([]Cell, numRows)
-	}
+// 	qFieldToCells := make(map[QField][]Cell)
+// 	for _, q := range qFields {
+// 		qFieldToCells[q] = make([]Cell, numRows)
+// 	}
 
-	for rowIndex, valuesLine := range valuesLines {
-		qFieldToCell := make(map[QField]Cell, numCols)
-		cells := make([]Cell, numCols)
-		rawValues := parseCSVLine(valuesLine)
+// 	for rowIndex, valuesLine := range valuesLines {
+// 		qFieldToCell := make(map[QField]Cell, numCols)
+// 		cells := make([]Cell, numCols)
+// 		rawValues := parseCSVLine(valuesLine)
 
-		if len(qFields) != len(rFields) {
-			return Table{}, fmt.Errorf(
-				"field count mismatch: query fields: %d, returned fields: %d",
-				len(qFields),
-				len(rFields),
-			)
-		}
+// 		if len(qFields) != len(rFields) {
+// 			return Table{}, fmt.Errorf(
+// 				"field count mismatch: query fields: %d, returned fields: %d",
+// 				len(qFields),
+// 				len(rFields),
+// 			)
+// 		}
 
-		for colIndex, rawValue := range rawValues {
-			currentQField := qFields[colIndex]
-			currentRField := rFields[colIndex]
-			tableCell := Cell{
-				QField:   currentQField,
-				RField:   currentRField,
-				RawValue: rawValue,
-			}
-			qFieldToCell[currentQField] = tableCell
-			cells[colIndex] = tableCell
-			qFieldToCells[currentQField][rowIndex] = tableCell
-		}
+// 		for colIndex, rawValue := range rawValues {
+// 			currentQField := qFields[colIndex]
+// 			currentRField := rFields[colIndex]
+// 			tableCell := Cell{
+// 				QField:   currentQField,
+// 				RField:   currentRField,
+// 				RawValue: rawValue,
+// 			}
+// 			qFieldToCell[currentQField] = tableCell
+// 			cells[colIndex] = tableCell
+// 			qFieldToCells[currentQField][rowIndex] = tableCell
+// 		}
 
-		tableRow := Row{
-			QFieldToCells: qFieldToCell,
-			Cells:         cells,
-		}
+// 		tableRow := Row{
+// 			QFieldToCells: qFieldToCell,
+// 			Cells:         cells,
+// 		}
 
-		rows[rowIndex] = tableRow
-	}
+// 		rows[rowIndex] = tableRow
+// 	}
 
-	return Table{
-		Rows:          rows,
-		RFields:       rFields,
-		QFieldToCells: qFieldToCells,
-	}, nil
-}
+// 	return Table{
+// 		Rows:          rows,
+// 		RFields:       rFields,
+// 		QFieldToCells: qFieldToCells,
+// 	}, nil
+// }
 
-func parseCSVLine(line string) []string {
-	values := strings.Split(line, ",")
-	result := make([]string, len(values))
+// func parseCSVLine(line string) []string {
+// 	values := strings.Split(line, ",")
+// 	result := make([]string, len(values))
 
-	for i, field := range values {
-		result[i] = strings.TrimSpace(field)
-	}
+// 	for i, field := range values {
+// 		result[i] = strings.TrimSpace(field)
+// 	}
 
-	return result
-}
+// 	return result
+// }
 
-func (e *NvidiaExporter) sendMetric(ch chan<- prometheus.Metric, metric prometheus.Metric) {
-	select {
-	case <-e.ctx.Done():
-		logger.Log("context done, return")
-
-		return
-	case ch <- metric:
-	}
-}
+// func (e *NvidiaExporter) sendMetric(ch chan<- prometheus.Metric, metric prometheus.Metric) {
+// 	select {
+// 	case <-e.ctx.Done():
+// 		logger.Log("context done, return")
+// 		return
+// 	case ch <- metric:
+// 	}
+// }
 
 // func collectHuaweiMetric() []prometheus.Metric {
 // 	var metrics []prometheus.Metric
