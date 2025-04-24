@@ -51,10 +51,9 @@ type GPUMetrics struct {
 2. 确认是否启用GPU信息收集器
 */
 type GpuInfoCollector struct {
-	enable           bool
-	gpuType          string
-	nvidiaSmiCommand string
-	url              string
+	enable  bool
+	gpuType string
+	url     string
 }
 
 func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
@@ -77,7 +76,6 @@ func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
 			jsonGpuCollectInfo := jsonConfigInfos.GetJsonObject("gpuCollect")
 			enable := jsonGpuCollectInfo.GetBool("enable")
 			gpuType := jsonGpuCollectInfo.GetString("gpuType")
-			nvidiaSmiCommand := jsonGpuCollectInfo.GetString("nvidiaSmiCommand")
 			url := jsonGpuCollectInfo.GetString("url")
 			// prefix := jsonGpuCollectInfo.GetString("nvidiaPrefix")
 			// //如果采集华为GPU，则需要初始化collector获取芯片列表
@@ -152,10 +150,9 @@ func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
 			// 	}, nil
 			// }
 			return &GpuInfoCollector{
-				enable:           enable,
-				gpuType:          gpuType,
-				nvidiaSmiCommand: nvidiaSmiCommand,
-				url:              url,
+				enable:  enable,
+				gpuType: gpuType,
+				url:     url,
 			}, nil
 		}
 	}
@@ -434,7 +431,7 @@ func newGpuInfoCollector(g_logger log.Logger) (Collector, error) {
 // 收集 GPU 指标
 func (collector *GpuInfoCollector) collectGPUMetrics() ([]prometheus.Metric, error) {
 	// 执行 nvidia-smi 命令
-	cmd := exec.Command(collector.nvidiaSmiCommand)
+	cmd := exec.Command("nvidia-smi", "--query-gpu=index,uuid,utilization.gpu,utilization.memory,memory.total,memory.used", "--format=csv,noheader")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
