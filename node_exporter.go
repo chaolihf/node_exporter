@@ -34,7 +34,6 @@ import (
 	"github.com/chaolihf/node_exporter/collector"
 	"github.com/chaolihf/node_exporter/exporters/dns"
 	"github.com/chaolihf/node_exporter/exporters/firewall"
-	"github.com/chaolihf/node_exporter/exporters/gpu"
 	"github.com/chaolihf/node_exporter/exporters/hadoop"
 	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/chaolihf/node_exporter/exporters/switchs"
@@ -68,8 +67,8 @@ var (
 	enableSwitchExporter   bool = false
 	enableFirewallExporter bool = false
 	enableBlackBoxExporter bool = false
-	enableGpuExporter      bool = false
-	enableDnsExporter      bool = false
+	// enableGpuExporter      bool = false
+	enableDnsExporter bool = false
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -186,8 +185,6 @@ func initReadConfig() error {
 					enableFirewallExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "blackbox_exporter" {
 					enableBlackBoxExporter = true
-				} else if jsonModuleInfo.GetStringValue() == "gpu_exporter" {
-					enableGpuExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "dns_exporter" {
 					enableDnsExporter = true
 				}
@@ -315,12 +312,12 @@ func Main(fileLogger *zap.Logger) {
 		icmp.SetLogger(logger)
 	}
 
-	if enableGpuExporter {
-		http.HandleFunc("/gpuMetrics", func(w http.ResponseWriter, r *http.Request) {
-			gpu.RequestHandler(w, r)
-		})
-		gpu.SetLogger(logger)
-	}
+	// if enableGpuExporter {
+	// 	http.HandleFunc("/gpuMetrics", func(w http.ResponseWriter, r *http.Request) {
+	// 		gpu.RequestHandler(w, r)
+	// 	})
+	// 	gpu.SetLogger(logger)
+	// }
 	if enableDnsExporter {
 		http.HandleFunc("/dnsMetrics", func(w http.ResponseWriter, r *http.Request) {
 			dns.RequestHandler(w, r)

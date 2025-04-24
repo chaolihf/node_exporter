@@ -5,7 +5,6 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
-	github.com/NVIDIA/go-nvml v0.12.4-1
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/alecthomas/units v0.0.0-20240626203959-61d1e3462e30
 	github.com/beevik/ntp v1.3.0
