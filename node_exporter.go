@@ -34,8 +34,10 @@ import (
 	"github.com/chaolihf/node_exporter/collector"
 	"github.com/chaolihf/node_exporter/exporters/dns"
 	"github.com/chaolihf/node_exporter/exporters/firewall"
+	"github.com/chaolihf/node_exporter/exporters/gpu"
 	"github.com/chaolihf/node_exporter/exporters/hadoop"
 	"github.com/chaolihf/node_exporter/exporters/icmp"
+	"github.com/chaolihf/node_exporter/exporters/npu"
 	"github.com/chaolihf/node_exporter/exporters/switchs"
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
@@ -67,8 +69,9 @@ var (
 	enableSwitchExporter   bool = false
 	enableFirewallExporter bool = false
 	enableBlackBoxExporter bool = false
-	// enableGpuExporter      bool = false
-	enableDnsExporter bool = false
+	enableGpuExporter      bool = false
+	enableNpuExporter      bool = false
+	enableDnsExporter      bool = false
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -187,7 +190,12 @@ func initReadConfig() error {
 					enableBlackBoxExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "dns_exporter" {
 					enableDnsExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "gpu_exporter" {
+					enableGpuExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "npu_exporter" {
+					enableNpuExporter = true
 				}
+
 			}
 		}
 	}
@@ -311,13 +319,15 @@ func Main(fileLogger *zap.Logger) {
 		})
 		icmp.SetLogger(logger)
 	}
-
-	// if enableGpuExporter {
-	// 	http.HandleFunc("/gpuMetrics", func(w http.ResponseWriter, r *http.Request) {
-	// 		gpu.RequestHandler(w, r)
-	// 	})
-	// 	gpu.SetLogger(logger)
-	// }
+	if enableGpuExporter {
+		http.HandleFunc("/gpuMetrics", func(w http.ResponseWriter, r *http.Request) {
+			gpu.RequestHandler(w, r)
+		})
+		gpu.SetLogger(logger)
+	}
+	if enableNpuExporter {
+		npu.RegisterNpuService()
+	}
 	if enableDnsExporter {
 		http.HandleFunc("/dnsMetrics", func(w http.ResponseWriter, r *http.Request) {
 			dns.RequestHandler(w, r)
