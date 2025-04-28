@@ -3,14 +3,14 @@
 
 package npu
 
-// /*
-// #cgo LDFLAGS: -L. -lnpumonitor
-// #include "libnpumonitor.h"
+/*
+#cgo LDFLAGS: -L. -lnpumonitor
+#include "libnpumonitor.h"
 
-// void NpuServer();
-// */
-// import "C"
+void NpuServer();
+*/
+import "C"
 
 func RegisterNpuService() {
-	//C.NpuServer()
+	C.NpuServer()
 }
