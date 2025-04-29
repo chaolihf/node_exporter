@@ -64,6 +64,7 @@ type handler struct {
 }
 
 var (
+	npuConfigInfo          *npu.NpuConfig
 	readTimeout            int  = 10
 	enableHadoopExporter   bool = false
 	enableSwitchExporter   bool = false
@@ -194,12 +195,28 @@ func initReadConfig() error {
 					enableGpuExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "npu_exporter" {
 					enableNpuExporter = true
+					npuConfigInfos := jsonConfigInfos.GetJsonObject("npu_exporter_config")
+					npuConfigInfo = &npu.NpuConfig{
+						NpuListenIp:   npuConfigInfos.GetString("npuListenIp"),
+						NpuLogFile:    npuConfigInfos.GetString("npuLogFile"),
+						NpuLogLevel:   npuConfigInfos.GetInt("npuLogLevel"),
+						NpuMaxBackups: npuConfigInfos.GetInt("npuMaxBackups"),
+						NpuMaxAge:     npuConfigInfos.GetInt("npuMaxAge"),
+					}
 				}
 
 			}
 		}
 	}
 	return nil
+}
+
+type npuConfig struct {
+	npuListenIp   string
+	npuLogFile    string
+	npuLogLevel   int
+	npuMaxBackups int
+	npuMaxAge     int
 }
 
 func Main(fileLogger *zap.Logger) {
@@ -325,9 +342,7 @@ func Main(fileLogger *zap.Logger) {
 		})
 		gpu.SetLogger(logger)
 	}
-	if enableNpuExporter {
-		npu.RegisterNpuService()
-	}
+
 	if enableDnsExporter {
 		http.HandleFunc("/dnsMetrics", func(w http.ResponseWriter, r *http.Request) {
 			dns.RequestHandler(w, r)
@@ -365,8 +380,13 @@ func Main(fileLogger *zap.Logger) {
 		ReadTimeout: time.Duration(readTimeout) * time.Second,
 		TLSConfig:   tlsconf,
 	}
+
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("err", err)
 		os.Exit(1)
+	}
+
+	if enableNpuExporter {
+		npu.RegisterNpuService(server, npuConfigInfo)
 	}
 }

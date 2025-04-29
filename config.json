@@ -34,6 +34,13 @@
         "counterOffset":100,
         "localLog":true
     },
+    "npu_exporter_config":{
+        "npuListenIp":"0.0.0.0",
+        "npuLogFile": "/var/log/npu_exporter.log",
+        "npuLogLevel":0,
+        "npuMaxBackups":30,
+        "npuMaxAge":3
+    },
     "fileCheck":{
         "enable":true,
         "hostIp":"1.2.3.4",
