@@ -14,10 +14,10 @@ package npu
 import (
 	"net/http"
 
-	"github.com/chaolihf/node_exporter/mind-cluster/component/npu-exporter/cmd"
+	"github.com/professorshandian/npu-exporter/server"
 )
 
-func RegisterNpuService(server *http.Server, npuConfigInfo *NpuConfig) {
+func RegisterNpuService(server *http.Server, npuConfigInfo *server.NpuConfig) {
 	// C.NpuServer()
-	cmd.NpuServer(server, npuConfigInfo)
+	server.NpuSer ver(server, npuConfigInfo)
 }

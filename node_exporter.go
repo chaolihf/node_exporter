@@ -42,6 +42,7 @@ import (
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/professorshandian/npu-exporter/server"
 	"github.com/prometheus/client_golang/prometheus"
 	promcollectors "github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -64,7 +65,7 @@ type handler struct {
 }
 
 var (
-	npuConfigInfo          *npu.NpuConfig
+	npuConfigInfo          *server.NpuConfig
 	readTimeout            int  = 10
 	enableHadoopExporter   bool = false
 	enableSwitchExporter   bool = false
@@ -196,7 +197,7 @@ func initReadConfig() error {
 				} else if jsonModuleInfo.GetStringValue() == "npu_exporter" {
 					enableNpuExporter = true
 					npuConfigInfos := jsonConfigInfos.GetJsonObject("npu_exporter_config")
-					npuConfigInfo = &npu.NpuConfig{
+					npuConfigInfo = &server.NpuConfig{
 						NpuListenIp:   npuConfigInfos.GetString("npuListenIp"),
 						NpuLogFile:    npuConfigInfos.GetString("npuLogFile"),
 						NpuLogLevel:   npuConfigInfos.GetInt("npuLogLevel"),
@@ -209,14 +210,6 @@ func initReadConfig() error {
 		}
 	}
 	return nil
-}
-
-type npuConfig struct {
-	npuListenIp   string
-	npuLogFile    string
-	npuLogLevel   int
-	npuMaxBackups int
-	npuMaxAge     int
 }
 
 func Main(fileLogger *zap.Logger) {
