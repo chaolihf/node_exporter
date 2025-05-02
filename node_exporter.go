@@ -374,12 +374,13 @@ func Main(fileLogger *zap.Logger) {
 		TLSConfig:   tlsconf,
 	}
 
+	if enableNpuExporter {
+		npu.RegisterNpuService(server)
+	}
+
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("err", err)
 		os.Exit(1)
 	}
 
-	if enableNpuExporter {
-		npu.RegisterNpuService(server, npuConfigInfo)
-	}
 }
