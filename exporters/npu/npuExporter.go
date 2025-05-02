@@ -3,21 +3,12 @@
 
 package npu
 
-// /*
-// #cgo LDFLAGS: -L. -lnpumonitor
-// #include "libnpumonitor.h"
-
-// void NpuServer();
-// */
-// import "C"
-
 import (
 	"net/http"
 
-	"github.com/professorshandian/npu-exporter/server"
+	npu_exporter "github.com/chaolihf/mind-cluster/component/npu-exporter/cmd/npu-exporter"
 )
 
-func RegisterNpuService(server *http.Server, npuConfigInfo *server.NpuConfig) {
-	// C.NpuServer()
-	server.NpuSer ver(server, npuConfigInfo)
+func RegisterNpuService(server *http.Server) {
+	npu_exporter.NpuServer(server)
 }
