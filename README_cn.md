@@ -17,3 +17,4 @@
 ## 3、升级说明
 2023.12.3 升级gopsutils，修复主机进程过多时获取进程信息造成CPU异常高问题
 2024.1.10 修改默认参数，增加超时设置，去掉默认页面，防范缓慢的HTTP拒绝服务（DoS）攻击，修改默认路径为OneAgentMetrics
+2025.5.1 直接通过dcmi接口集成gpu，npu指标。npu的dcmi接口文档参见https://support.huawei.com/enterprise/zh/doc/EDOC1100288472/8e7776d1
