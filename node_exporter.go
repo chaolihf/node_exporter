@@ -26,10 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/promlog/flag"
-	"go.uber.org/zap"
-
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/collector"
 	"github.com/chaolihf/node_exporter/exporters/dns"
@@ -42,13 +38,15 @@ import (
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/professorshandian/npu-exporter/server"
 	"github.com/prometheus/client_golang/prometheus"
 	promcollectors "github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/promlog"
+	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	"github.com/prometheus/exporter-toolkit/web/kingpinflag"
+	"go.uber.org/zap"
 )
 
 // handler wraps an unfiltered http.Handler but uses a filtered handler,
@@ -65,7 +63,6 @@ type handler struct {
 }
 
 var (
-	npuConfigInfo          *server.NpuConfig
 	readTimeout            int  = 10
 	enableHadoopExporter   bool = false
 	enableSwitchExporter   bool = false
@@ -196,14 +193,6 @@ func initReadConfig() error {
 					enableGpuExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "npu_exporter" {
 					enableNpuExporter = true
-					npuConfigInfos := jsonConfigInfos.GetJsonObject("npu_exporter_config")
-					npuConfigInfo = &server.NpuConfig{
-						NpuListenIp:   npuConfigInfos.GetString("npuListenIp"),
-						NpuLogFile:    npuConfigInfos.GetString("npuLogFile"),
-						NpuLogLevel:   npuConfigInfos.GetInt("npuLogLevel"),
-						NpuMaxBackups: npuConfigInfos.GetInt("npuMaxBackups"),
-						NpuMaxAge:     npuConfigInfos.GetInt("npuMaxAge"),
-					}
 				}
 
 			}
@@ -211,7 +200,6 @@ func initReadConfig() error {
 	}
 	return nil
 }
-
 func Main(fileLogger *zap.Logger) {
 
 	defer func() {
@@ -336,6 +324,13 @@ func Main(fileLogger *zap.Logger) {
 		gpu.SetLogger(logger)
 	}
 
+	if enableNpuExporter {
+		http.HandleFunc("/npuMetrics", func(w http.ResponseWriter, r *http.Request) {
+			npu.RequestHandler(w, r)
+		})
+		npu.SetLogger(logger)
+	}
+
 	if enableDnsExporter {
 		http.HandleFunc("/dnsMetrics", func(w http.ResponseWriter, r *http.Request) {
 			dns.RequestHandler(w, r)
@@ -372,10 +367,6 @@ func Main(fileLogger *zap.Logger) {
 	server := &http.Server{
 		ReadTimeout: time.Duration(readTimeout) * time.Second,
 		TLSConfig:   tlsconf,
-	}
-
-	if enableNpuExporter {
-		npu.RegisterNpuService(server)
 	}
 
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {

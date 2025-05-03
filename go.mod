@@ -10,6 +10,7 @@ require (
 	github.com/bramvdbogaerde/go-scp v1.4.0
 	github.com/chaolihf/goja v0.9.1
 	github.com/chaolihf/gopsutil v0.0.4
+	github.com/chaolihf/mind-cluster v0.0.5
 	github.com/chaolihf/udpgo v0.0.14
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/dennwc/btrfs v0.0.0-20230312211831-a1f570bd01a1
@@ -31,7 +32,6 @@ require (
 	github.com/miekg/dns v1.1.64
 	github.com/opencontainers/selinux v1.11.0
 	github.com/pkg/sftp v1.13.9
-	github.com/professorshandian/npu-exporter v1.0.1
 	github.com/prometheus-community/go-runit v0.1.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model v0.6.1
@@ -53,51 +53,34 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
-	github.com/alecthomas/participle v0.4.1 // indirect
-	github.com/awnumar/memcall v0.1.2 // indirect
-	github.com/awnumar/memguard v0.22.3 // indirect
-	github.com/benbjohnson/clock v1.3.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blues/jsonata-go v1.5.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chaolihf/mind-cluster v0.0.5 // indirect
-	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dennwc/ioctl v1.0.0 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
-	github.com/fatih/color v1.15.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
-	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20241029153458-d1b30febd7db // indirect
-	github.com/gosnmp/gosnmp v1.35.0 // indirect
-	github.com/influxdata/telegraf v1.26.3 // indirect
-	github.com/influxdata/toml v0.0.0-20190415235208-270119a8ce65 // indirect
+	github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
+	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20240226150601-1dcf7310316a // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mdlayher/genetlink v1.3.2 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
-	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
-	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/prometheus/prometheus v0.42.0 // indirect
+	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/siebenmann/go-kstat v0.0.0-20210513183136-173c9b0a9973 // indirect
-	github.com/sleepinggenius2/gosmi v0.4.4 // indirect
-	github.com/tinylib/msgp v1.1.8 // indirect
+	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/tklauser/go-sysconf v0.3.13 // indirect
 	github.com/tklauser/numcpus v0.7.0 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
@@ -107,10 +90,7 @@ require (
 	golang.org/x/oauth2 v0.28.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
-	google.golang.org/grpc v1.57.2 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apimachinery v0.26.2 // indirect
-	k8s.io/cri-api v0.25.13 // indirect
 )
