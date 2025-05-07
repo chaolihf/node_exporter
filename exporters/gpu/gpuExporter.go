@@ -49,12 +49,18 @@ func (collector *gpuCollector) Collect(ch chan<- prometheus.Metric) {
 		if ret != nvml.SUCCESS {
 			level.Error(logger).Log("msg", "Unable to get device ", i, " memory,err", nvml.ErrorString(ret))
 		}
+		powerInfo, ret := device.GetPowerSource()
+		if ret != nvml.SUCCESS {
+			level.Error(logger).Log("msg", "Unable to get device ", i, " power,err", nvml.ErrorString(ret))
+		}
 		ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_total_memory", "", nil, tags),
 			prometheus.CounterValue, float64(memInfo.Total/1024/1024))
 		ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_used_memory", "", nil, tags),
 			prometheus.CounterValue, float64(memInfo.Used/1024/1024))
 		ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_free_memory", "", nil, tags),
 			prometheus.CounterValue, float64(memInfo.Free/1024/1024))
+		ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_used_power", "", nil, tags),
+			prometheus.CounterValue, float64(powerInfo/1000))
 		utilization, ret := device.GetUtilizationRates()
 		if ret != nvml.SUCCESS {
 			level.Error(logger).Log("msg", "Unable to get device ", i, " utilization ,err", nvml.ErrorString(ret))
@@ -71,6 +77,37 @@ func (collector *gpuCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_temperature", "", nil, tags),
 			prometheus.CounterValue, float64(temperature))
+		processComputeList, ret := device.GetComputeRunningProcesses()
+		if ret != nvml.SUCCESS {
+			level.Error(logger).Log("msg", "Unable to get device ", i, " process ,err", nvml.ErrorString(ret))
+			continue
+		}
+		processGraphicsList, ret := device.GetGraphicsRunningProcesses()
+		if ret != nvml.SUCCESS {
+			level.Error(logger).Log("msg", "Unable to get device ", i, " process ,err", nvml.ErrorString(ret))
+			continue
+		}
+		processMpsList, ret := device.GetMPSComputeRunningProcesses()
+		if ret != nvml.SUCCESS {
+			level.Error(logger).Log("msg", "Unable to get device ", i, " process ,err", nvml.ErrorString(ret))
+			continue
+		}
+		combinedProcess := append(processComputeList, processGraphicsList...)
+		processList := append(combinedProcess, processMpsList...)
+		resultProcessList := []nvml.ProcessInfo{}
+		uniqueMap := make(map[nvml.ProcessInfo]bool)
+		for _, item := range processList {
+			if _, exists := uniqueMap[item]; !exists {
+				uniqueMap[item] = true
+				resultProcessList = append(resultProcessList, item)
+			}
+		}
+		for _, processInfo := range resultProcessList {
+			tags["pid"] = fmt.Sprintf("%d", processInfo.Pid)
+			tags["usedGpuMemory"] = fmt.Sprintf("%d", processInfo.UsedGpuMemory/1024/1024)
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_process_info", "", nil, tags),
+				prometheus.CounterValue, float64(0))
+		}
 	}
 }
 
