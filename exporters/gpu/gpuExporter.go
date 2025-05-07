@@ -49,7 +49,7 @@ func (collector *gpuCollector) Collect(ch chan<- prometheus.Metric) {
 		if ret != nvml.SUCCESS {
 			level.Error(logger).Log("msg", "Unable to get device ", i, " memory,err", nvml.ErrorString(ret))
 		}
-		powerInfo, ret := device.GetPowerSource()
+		powerInfo, ret := device.GetPowerUsage()
 		if ret != nvml.SUCCESS {
 			level.Error(logger).Log("msg", "Unable to get device ", i, " power,err", nvml.ErrorString(ret))
 		}
@@ -102,10 +102,13 @@ func (collector *gpuCollector) Collect(ch chan<- prometheus.Metric) {
 				resultProcessList = append(resultProcessList, item)
 			}
 		}
+		var processTags = make(map[string]string)
+		processTags["uuid"] = uuid
+		processTags["index"] = fmt.Sprintf("%d", i)
 		for _, processInfo := range resultProcessList {
-			tags["pid"] = fmt.Sprintf("%d", processInfo.Pid)
-			tags["usedGpuMemory"] = fmt.Sprintf("%d", processInfo.UsedGpuMemory/1024/1024)
-			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_process_info", "", nil, tags),
+			processTags["pid"] = fmt.Sprintf("%d", processInfo.Pid)
+			processTags["usedGpuMemory"] = fmt.Sprintf("%d", processInfo.UsedGpuMemory/1024/1024)
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_process_info", "", nil, processTags),
 				prometheus.CounterValue, float64(0))
 		}
 	}

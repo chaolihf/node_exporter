@@ -53,7 +53,7 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		tags["index"] = fmt.Sprintf("%d", cardID)
 		for deviceID := int32(0); deviceID < deviceNum; deviceID++ {
-			logicID, err := deviceManager.DcGetDeviceLogicID(cardID, deviceID)
+			logicID, err := deviceManager.DcGetDeviceMainBoardInfo(cardID, deviceID)
 			tags["uuid"] = fmt.Sprintf("%d", logicID)
 			voltageInfo, err := deviceManager.DcGetDeviceVoltage(cardID, int32(deviceID))
 			if err != nil {
@@ -89,10 +89,13 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device devProcessInfo id %s", err)
 			}
+			var processTags = make(map[string]string)
+			processTags["index"] = fmt.Sprintf("%d", cardID)
+			processTags["uuid"] = fmt.Sprintf("%d", logicID)
 			for _, processInfo := range devProcessInfo.DevProcArray {
-				tags["pid"] = fmt.Sprintf("%d", processInfo.Pid)
-				tags["usedGpuMemory"] = fmt.Sprintf("%d", processInfo.MemUsage)
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_process_info", "", nil, tags),
+				processTags["pid"] = fmt.Sprintf("%d", processInfo.Pid)
+				processTags["usedGpuMemory"] = fmt.Sprintf("%.2f", processInfo.MemUsage)
+				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_process_info", "", nil, processTags),
 					prometheus.CounterValue, float64(0))
 			}
 			fmt.Printf("cardID %d, deviceID %d,devProcessInfo %v\n", cardID, deviceID, devProcessInfo)
