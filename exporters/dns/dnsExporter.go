@@ -80,10 +80,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("missing module parameter!"))
 		return
 	}
-	probeSuccessGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "probe_success",
+	sc.Lock()
+	conf := sc.C
+	sc.Unlock()
+	module, ok := conf.Modules[moduleName]
+	if !ok {
+		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
+		return
+	}
+	probeSuccessGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "dns_probe_success",
 		Help: "Displays whether or not the probe was a success",
-	})
+	}, []string{"transport_protocol"}).WithLabelValues(module.DNS.TransportProtocol)
 	probeDurationGauge := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_duration_seconds",
 		Help: "Returns how long the probe took to complete in seconds",
@@ -92,7 +100,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(probeSuccessGauge)
 	registry.MustRegister(probeDurationGauge)
-	success := ProbeDNS(targetName, registry, moduleName)
+	success := ProbeDNS(targetName, registry, module)
 	duration := time.Since(start).Seconds()
 	probeDurationGauge.Set(duration)
 	if success {
@@ -201,18 +209,18 @@ func validRcode(rcode int, valid []string, logger log.Logger) bool {
 	return false
 }
 
-func ProbeDNS(target string, registry *prometheus.Registry, moduleName string) bool {
-	sc.Lock()
-	conf := sc.C
-	sc.Unlock()
+func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) bool {
+	// sc.Lock()
+	// conf := sc.C
+	// sc.Unlock()
 	if err := sc.ReloadConfig(*configFile, logger); err != nil {
 		level.Error(logger).Log("msg", "Error loading config", "err", err)
 	}
-	module, ok := conf.Modules[moduleName]
-	if !ok {
-		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
-		return false
-	}
+	// module, ok := conf.Modules[moduleName]
+	// if !ok {
+	// 	level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
+	// 	return false
+	// }
 	var dialProtocol string
 	probeDNSDurationGaugeVec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "probe_dns_duration_seconds",
