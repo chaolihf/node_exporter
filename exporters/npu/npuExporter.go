@@ -11,6 +11,7 @@ import (
 
 	"github.com/chaolihf/mind-cluster/component/ascend-common/common-utils/hwlog"
 	"github.com/chaolihf/mind-cluster/component/ascend-common/devmanager"
+	"github.com/chaolihf/mind-cluster/component/ascend-common/devmanager/common"
 	"github.com/chaolihf/mind-cluster/component/ascend-common/devmanager/dcmi"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -61,6 +62,18 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_voltage", "", nil, tags),
 				prometheus.CounterValue, float64(voltageInfo))
+			aiCoreUtilization, err := deviceManager.DcGetDeviceUtilizationRate(cardID, int32(deviceID), common.AICore)
+			if err != nil {
+				level.Error(logger).Log("msg", "error on get device aiCoreUtilization id %s", err)
+			}
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_aicore_utilization", "", nil, tags),
+				prometheus.CounterValue, float64(aiCoreUtilization))
+			overAllUtilization, err := deviceManager.DcGetDeviceUtilizationRate(cardID, int32(deviceID), common.Overall)
+			if err != nil {
+				level.Error(logger).Log("msg", "error on get device overAllUtilization id %s", err)
+			}
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_overall_utilization", "", nil, tags),
+				prometheus.CounterValue, float64(overAllUtilization))
 			powerInfo, err := deviceManager.DcGetDevicePowerInfo(cardID, int32(deviceID))
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device powerInfo id %s", err)

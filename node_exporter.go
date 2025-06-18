@@ -18,7 +18,8 @@ import (
 	"fmt"
 	stdlog "log"
 	"net/http"
-	_ "net/http/pprof"
+
+	// _ "net/http/pprof"
 	"os"
 	"os/user"
 	"runtime"
