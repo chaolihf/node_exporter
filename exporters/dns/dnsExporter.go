@@ -80,28 +80,30 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("missing module parameter!"))
 		return
 	}
-	sc.Lock()
-	conf := sc.C
-	sc.Unlock()
-	module, ok := conf.Modules[moduleName]
-	if !ok {
-		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
-		return
-	}
+	// sc.Lock()
+	// conf := sc.C
+	// sc.Unlock()
+	// module, ok := conf.Modules[moduleName]
+	// if !ok {
+	// 	level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	w.Write([]byte("unkown module!"))
+	// 	return
+	// }
+	registry := prometheus.NewRegistry()
+	start := time.Now()
+	success, transportProtocol := ProbeDNS(targetName, registry, moduleName, w)
+	duration := time.Since(start).Seconds()
 	probeSuccessGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "dns_probe_success",
 		Help: "Displays whether or not the probe was a success",
-	}, []string{"transport_protocol"}).WithLabelValues(module.DNS.TransportProtocol)
+	}, []string{"transport_protocol"}).WithLabelValues(transportProtocol)
 	probeDurationGauge := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_duration_seconds",
 		Help: "Returns how long the probe took to complete in seconds",
 	})
-	start := time.Now()
-	registry := prometheus.NewRegistry()
 	registry.MustRegister(probeSuccessGauge)
 	registry.MustRegister(probeDurationGauge)
-	success := ProbeDNS(targetName, registry, module)
-	duration := time.Since(start).Seconds()
 	probeDurationGauge.Set(duration)
 	if success {
 		probeSuccessGauge.Set(1)
@@ -209,18 +211,21 @@ func validRcode(rcode int, valid []string, logger log.Logger) bool {
 	return false
 }
 
-func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) bool {
-	// sc.Lock()
-	// conf := sc.C
-	// sc.Unlock()
+func ProbeDNS(target string, registry *prometheus.Registry, moduleName string, w http.ResponseWriter) (bool, string) {
+	sc.Lock()
+	conf := sc.C
+	sc.Unlock()
 	if err := sc.ReloadConfig(*configFile, logger); err != nil {
 		level.Error(logger).Log("msg", "Error loading config", "err", err)
 	}
-	// module, ok := conf.Modules[moduleName]
-	// if !ok {
-	// 	level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
-	// 	return false
-	// }
+	module, ok := conf.Modules[moduleName]
+	if !ok {
+		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing module parameter!"))
+		return false, ""
+	}
+	transportProtocol := module.DNS.TransportProtocol
 	var dialProtocol string
 	probeDNSDurationGaugeVec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "probe_dns_duration_seconds",
@@ -262,7 +267,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 		qc, ok = dns.StringToClass[module.DNS.QueryClass]
 		if !ok {
 			level.Error(logger).Log("msg", "Invalid query class", "Class seen", module.DNS.QueryClass, "Existing classes", dns.ClassToString)
-			return false
+			return false, transportProtocol
 		}
 	}
 
@@ -272,7 +277,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 		qt, ok = dns.StringToType[module.DNS.QueryType]
 		if !ok {
 			level.Error(logger).Log("msg", "Invalid query type", "Type seen", module.DNS.QueryType, "Existing types", dns.TypeToString)
-			return false
+			return false, transportProtocol
 		}
 	}
 	var probeDNSSOAGauge prometheus.Gauge
@@ -283,7 +288,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 	}
 	if !(module.DNS.TransportProtocol == "udp" || module.DNS.TransportProtocol == "tcp") {
 		level.Error(logger).Log("msg", "Configuration error: Expected transport protocol udp or tcp", "protocol", module.DNS.TransportProtocol)
-		return false
+		return false, transportProtocol
 	}
 
 	targetAddr, port, err := net.SplitHostPort(target)
@@ -299,7 +304,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 	ip, lookupTime, err := chooseProtocol(ctx, module.DNS.IPProtocol, module.DNS.IPProtocolFallback, targetAddr, registry, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "Error resolving address", "err", err)
-		return false
+		return false, transportProtocol
 	}
 	probeDNSDurationGaugeVec.WithLabelValues("resolve").Add(lookupTime)
 	targetIP := net.JoinHostPort(ip.String(), port)
@@ -315,7 +320,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 			dialProtocol += "-tls"
 		} else {
 			level.Error(logger).Log("msg", "Configuration error: Expected transport protocol tcp for DoT", "protocol", module.DNS.TransportProtocol)
-			return false
+			return false, transportProtocol
 		}
 	}
 
@@ -326,7 +331,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 		tlsConfig, err := pconfig.NewTLSConfig(&module.DNS.TLSConfig)
 		if err != nil {
 			level.Error(logger).Log("msg", "Failed to create TLS configuration", "err", err)
-			return false
+			return false, transportProtocol
 		}
 		if tlsConfig.ServerName == "" {
 			// Use target-hostname as default for TLS-servername.
@@ -341,7 +346,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 		srcIP := net.ParseIP(module.DNS.SourceIPAddress)
 		if srcIP == nil {
 			level.Error(logger).Log("msg", "Error parsing source ip address", "srcIP", module.DNS.SourceIPAddress)
-			return false
+			return false, transportProtocol
 		}
 		level.Info(logger).Log("msg", "Using local address", "srcIP", srcIP)
 		client.Dialer = &net.Dialer{}
@@ -371,7 +376,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 	probeDNSDurationGaugeVec.WithLabelValues("request").Set(rtt.Seconds())
 	if err != nil {
 		level.Error(logger).Log("msg", "Error while sending a DNS query", "err", err)
-		return false
+		return false, transportProtocol
 	}
 	level.Info(logger).Log("msg", "Got response", "response", response)
 
@@ -395,22 +400,22 @@ func ProbeDNS(target string, registry *prometheus.Registry, module icmp.Module) 
 	}
 
 	if !validRcode(response.Rcode, module.DNS.ValidRcodes, logger) {
-		return false
+		return false, transportProtocol
 	}
 	level.Info(logger).Log("msg", "Validating Answer RRs")
 	if !validRRs(&response.Answer, &module.DNS.ValidateAnswer, logger) {
 		level.Error(logger).Log("msg", "Answer RRs validation failed")
-		return false
+		return false, transportProtocol
 	}
 	level.Info(logger).Log("msg", "Validating Authority RRs")
 	if !validRRs(&response.Ns, &module.DNS.ValidateAuthority, logger) {
 		level.Error(logger).Log("msg", "Authority RRs validation failed")
-		return false
+		return false, transportProtocol
 	}
 	level.Info(logger).Log("msg", "Validating Additional RRs")
 	if !validRRs(&response.Extra, &module.DNS.ValidateAdditional, logger) {
 		level.Error(logger).Log("msg", "Additional RRs validation failed")
-		return false
+		return false, transportProtocol
 	}
-	return true
+	return true, transportProtocol
 }
