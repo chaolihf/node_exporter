@@ -54,15 +54,25 @@ type cpuCollector struct {
 	cpuBugsIncludeRegexp  *regexp.Regexp
 }
 
+type cpuSoftIrqInfo struct {
+	cpuNum           string
+	cpuSoftIrqTime   float64
+	cpuAllModuleTime float64
+}
+
 // Idle jump back limit in seconds.
 const jumpBackSeconds = 3.0
 
 var (
-	enableCPUGuest       = kingpin.Flag("collector.cpu.guest", "Enables metric node_cpu_guest_seconds_total").Default("true").Bool()
-	enableCPUInfo        = kingpin.Flag("collector.cpu.info", "Enables metric cpu_info").Bool()
-	flagsInclude         = kingpin.Flag("collector.cpu.info.flags-include", "Filter the `flags` field in cpuInfo with a value that must be a regular expression").String()
-	bugsInclude          = kingpin.Flag("collector.cpu.info.bugs-include", "Filter the `bugs` field in cpuInfo with a value that must be a regular expression").String()
-	jumpBackDebugMessage = fmt.Sprintf("CPU Idle counter jumped backwards more than %f seconds, possible hotplug event, resetting CPU stats", jumpBackSeconds)
+	lastCpuTotalTime              float64
+	lastCpuNoIdleTime             float64
+	lastCpuIowaitTime             float64
+	lastSingleCpuSoftIrqInfoSlice []cpuSoftIrqInfo
+	enableCPUGuest                = kingpin.Flag("collector.cpu.guest", "Enables metric node_cpu_guest_seconds_total").Default("true").Bool()
+	enableCPUInfo                 = kingpin.Flag("collector.cpu.info", "Enables metric cpu_info").Bool()
+	flagsInclude                  = kingpin.Flag("collector.cpu.info.flags-include", "Filter the `flags` field in cpuInfo with a value that must be a regular expression").String()
+	bugsInclude                   = kingpin.Flag("collector.cpu.info.bugs-include", "Filter the `bugs` field in cpuInfo with a value that must be a regular expression").String()
+	jumpBackDebugMessage          = fmt.Sprintf("CPU Idle counter jumped backwards more than %f seconds, possible hotplug event, resetting CPU stats", jumpBackSeconds)
 )
 
 func init() {
@@ -346,6 +356,12 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 	// Acquire a lock to read the stats.
 	c.cpuStatsMutex.Lock()
 	defer c.cpuStatsMutex.Unlock()
+	var cpuTotalTime float64
+	var cpuNoIdleTime float64
+	var cpuIowaitTime float64
+	// var singleCpuSoftIrqMap = make(map[string]float64)
+	// var singleCpuAllModuleMap = make(map[string]float64)
+	singleCpuSoftIrqSlice := []cpuSoftIrqInfo{}
 	for cpuID, cpuStat := range c.cpuStats {
 		cpuNum := strconv.Itoa(int(cpuID))
 		ch <- prometheus.MustNewConstMetric(c.cpu, prometheus.CounterValue, cpuStat.User, cpuNum, "user")
@@ -356,14 +372,49 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(c.cpu, prometheus.CounterValue, cpuStat.IRQ, cpuNum, "irq")
 		ch <- prometheus.MustNewConstMetric(c.cpu, prometheus.CounterValue, cpuStat.SoftIRQ, cpuNum, "softirq")
 		ch <- prometheus.MustNewConstMetric(c.cpu, prometheus.CounterValue, cpuStat.Steal, cpuNum, "steal")
-
+		cpuTotalTime += cpuStat.User + cpuStat.Nice + cpuStat.System + cpuStat.Idle + cpuStat.Iowait + cpuStat.IRQ + cpuStat.SoftIRQ + cpuStat.Steal
+		cpuNoIdleTime += cpuStat.User + cpuStat.Nice + cpuStat.System + cpuStat.Iowait + cpuStat.IRQ + cpuStat.SoftIRQ + cpuStat.Steal
+		cpuIowaitTime += cpuStat.Iowait
+		singleCpuSoftIrqSlice = append(singleCpuSoftIrqSlice, cpuSoftIrqInfo{
+			cpuNum:           cpuNum,
+			cpuSoftIrqTime:   cpuStat.SoftIRQ,
+			cpuAllModuleTime: cpuStat.User + cpuStat.Nice + cpuStat.System + cpuStat.Idle + cpuStat.Iowait + cpuStat.IRQ + cpuStat.SoftIRQ + cpuStat.Steal,
+		})
 		if *enableCPUGuest {
 			// Guest CPU is also accounted for in cpuStat.User and cpuStat.Nice, expose these as separate metrics.
 			ch <- prometheus.MustNewConstMetric(c.cpuGuest, prometheus.CounterValue, cpuStat.Guest, cpuNum, "user")
 			ch <- prometheus.MustNewConstMetric(c.cpuGuest, prometheus.CounterValue, cpuStat.GuestNice, cpuNum, "nice")
 		}
 	}
-
+	deltaNoIdleTime := cpuNoIdleTime - lastCpuNoIdleTime
+	deltaIowaitTime := cpuIowaitTime - lastCpuIowaitTime
+	deltaTotalTime := cpuTotalTime - lastCpuTotalTime
+	ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("node_cpu_utilization", "", nil, nil),
+		prometheus.CounterValue, deltaNoIdleTime/deltaTotalTime*100.0)
+	ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("node_cpu_iowait", "", nil, nil),
+		prometheus.CounterValue, deltaIowaitTime/deltaTotalTime*100.0)
+	lastCpuNoIdleTime = cpuNoIdleTime
+	lastCpuIowaitTime = cpuIowaitTime
+	lastCpuTotalTime = cpuTotalTime
+	softIrqResultSlice := []float64{}
+	// The first collection of softIrq metric
+	if len(lastSingleCpuSoftIrqInfoSlice) == 0 {
+		for _, singleCpuSoftIrqInfo := range singleCpuSoftIrqSlice {
+			softIrqResultSlice = append(softIrqResultSlice, singleCpuSoftIrqInfo.cpuSoftIrqTime/singleCpuSoftIrqInfo.cpuAllModuleTime*100.0)
+		}
+	} else {
+		for _, singleCpuSoftIrqInfo := range singleCpuSoftIrqSlice {
+			for _, lastSingleCpuSoftIrqInfo := range lastSingleCpuSoftIrqInfoSlice {
+				if singleCpuSoftIrqInfo.cpuNum == lastSingleCpuSoftIrqInfo.cpuNum {
+					deltaSingleCpuSoftIrqTime := singleCpuSoftIrqInfo.cpuSoftIrqTime - lastSingleCpuSoftIrqInfo.cpuSoftIrqTime
+					deltaSingleCpuAllModuleTime := singleCpuSoftIrqInfo.cpuAllModuleTime - lastSingleCpuSoftIrqInfo.cpuAllModuleTime
+					softIrqResultSlice = append(softIrqResultSlice, deltaSingleCpuSoftIrqTime/deltaSingleCpuAllModuleTime*100.0)
+				}
+			}
+		}
+	}
+	ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("node_cpu_softirq", "", nil, nil),
+		prometheus.CounterValue, slices.Max(softIrqResultSlice))
 	return nil
 }
 
