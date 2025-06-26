@@ -18,6 +18,7 @@ package collector
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -389,10 +390,12 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 	deltaNoIdleTime := cpuNoIdleTime - lastCpuNoIdleTime
 	deltaIowaitTime := cpuIowaitTime - lastCpuIowaitTime
 	deltaTotalTime := cpuTotalTime - lastCpuTotalTime
+	cpuUtilizationResult := deltaNoIdleTime / deltaTotalTime * 100.0
+	cpuIowaitResult := deltaIowaitTime / deltaTotalTime * 100.0
 	ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("node_cpu_utilization", "", nil, nil),
-		prometheus.CounterValue, deltaNoIdleTime/deltaTotalTime*100.0)
+		prometheus.CounterValue, math.Round(cpuUtilizationResult*100)/100)
 	ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("node_cpu_iowait", "", nil, nil),
-		prometheus.CounterValue, deltaIowaitTime/deltaTotalTime*100.0)
+		prometheus.CounterValue, math.Round(cpuIowaitResult*100)/100)
 	lastCpuNoIdleTime = cpuNoIdleTime
 	lastCpuIowaitTime = cpuIowaitTime
 	lastCpuTotalTime = cpuTotalTime
@@ -400,7 +403,8 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 	// The first collection of softIrq metric
 	if len(lastSingleCpuSoftIrqInfoSlice) == 0 {
 		for _, singleCpuSoftIrqInfo := range singleCpuSoftIrqSlice {
-			softIrqResultSlice = append(softIrqResultSlice, singleCpuSoftIrqInfo.cpuSoftIrqTime/singleCpuSoftIrqInfo.cpuAllModuleTime*100.0)
+			value := singleCpuSoftIrqInfo.cpuSoftIrqTime / singleCpuSoftIrqInfo.cpuAllModuleTime * 100.0
+			softIrqResultSlice = append(softIrqResultSlice, math.Round(value*100)/100)
 		}
 	} else {
 		for _, singleCpuSoftIrqInfo := range singleCpuSoftIrqSlice {
@@ -408,7 +412,8 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 				if singleCpuSoftIrqInfo.cpuNum == lastSingleCpuSoftIrqInfo.cpuNum {
 					deltaSingleCpuSoftIrqTime := singleCpuSoftIrqInfo.cpuSoftIrqTime - lastSingleCpuSoftIrqInfo.cpuSoftIrqTime
 					deltaSingleCpuAllModuleTime := singleCpuSoftIrqInfo.cpuAllModuleTime - lastSingleCpuSoftIrqInfo.cpuAllModuleTime
-					softIrqResultSlice = append(softIrqResultSlice, deltaSingleCpuSoftIrqTime/deltaSingleCpuAllModuleTime*100.0)
+					value := deltaSingleCpuSoftIrqTime / deltaSingleCpuAllModuleTime * 100.0
+					softIrqResultSlice = append(softIrqResultSlice, math.Round(value*100)/100)
 				}
 			}
 		}
