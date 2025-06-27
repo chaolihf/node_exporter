@@ -405,6 +405,7 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 		for _, singleCpuSoftIrqInfo := range singleCpuSoftIrqSlice {
 			value := singleCpuSoftIrqInfo.cpuSoftIrqTime / singleCpuSoftIrqInfo.cpuAllModuleTime * 100.0
 			softIrqResultSlice = append(softIrqResultSlice, math.Round(value*100)/100)
+			lastSingleCpuSoftIrqInfoSlice = append(lastSingleCpuSoftIrqInfoSlice, singleCpuSoftIrqInfo)
 		}
 	} else {
 		for _, singleCpuSoftIrqInfo := range singleCpuSoftIrqSlice {
@@ -414,6 +415,8 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 					deltaSingleCpuAllModuleTime := singleCpuSoftIrqInfo.cpuAllModuleTime - lastSingleCpuSoftIrqInfo.cpuAllModuleTime
 					value := deltaSingleCpuSoftIrqTime / deltaSingleCpuAllModuleTime * 100.0
 					softIrqResultSlice = append(softIrqResultSlice, math.Round(value*100)/100)
+					lastSingleCpuSoftIrqInfo.cpuSoftIrqTime = singleCpuSoftIrqInfo.cpuSoftIrqTime
+					lastSingleCpuSoftIrqInfo.cpuAllModuleTime = singleCpuSoftIrqInfo.cpuAllModuleTime
 				}
 			}
 		}
