@@ -415,11 +415,11 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 					deltaSingleCpuAllModuleTime := singleCpuSoftIrqInfo.cpuAllModuleTime - lastSingleCpuSoftIrqInfo.cpuAllModuleTime
 					value := deltaSingleCpuSoftIrqTime / deltaSingleCpuAllModuleTime * 100.0
 					softIrqResultSlice = append(softIrqResultSlice, math.Round(value*100)/100)
-					lastSingleCpuSoftIrqInfo.cpuSoftIrqTime = singleCpuSoftIrqInfo.cpuSoftIrqTime
-					lastSingleCpuSoftIrqInfo.cpuAllModuleTime = singleCpuSoftIrqInfo.cpuAllModuleTime
 				}
 			}
 		}
+		lastSingleCpuSoftIrqInfoSlice = nil
+		lastSingleCpuSoftIrqInfoSlice = append(lastSingleCpuSoftIrqInfoSlice, singleCpuSoftIrqSlice...)
 	}
 	ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("node_cpu_softirq", "", nil, nil),
 		prometheus.CounterValue, slices.Max(softIrqResultSlice))
