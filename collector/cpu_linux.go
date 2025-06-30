@@ -387,6 +387,8 @@ func (c *cpuCollector) updateStat(ch chan<- prometheus.Metric) error {
 			ch <- prometheus.MustNewConstMetric(c.cpuGuest, prometheus.CounterValue, cpuStat.GuestNice, cpuNum, "nice")
 		}
 	}
+	ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("node_cpu_num", "", nil, nil),
+		prometheus.CounterValue, float64(len(singleCpuSoftIrqSlice)))
 	deltaNoIdleTime := cpuNoIdleTime - lastCpuNoIdleTime
 	deltaIowaitTime := cpuIowaitTime - lastCpuIowaitTime
 	deltaTotalTime := cpuTotalTime - lastCpuTotalTime
