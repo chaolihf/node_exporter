@@ -86,18 +86,25 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_temperature", "", nil, tags),
 				prometheus.CounterValue, float64(temperatureInfo))
-			highBandwidthMemoryInfo, err := deviceManager.DcGetHbmInfo(cardID, int32(deviceID))
+			// highBandwidthMemoryInfo, err := deviceManager.DcGetHbmInfo(cardID, int32(deviceID))
+			highBandwidthMemoryInfo, err := deviceManager.DcGetMemoryInfo(cardID, int32(deviceID))
 			if err != nil {
-				level.Error(logger).Log("msg", "error on get device highBandwidthMemoryInfo id %s", err)
+				level.Error(logger).Log("msg", "error on get device memory info id %s", err)
+			}
+			highBandwidthMemoryInfo1, err := deviceManager.DcGetHbmInfo(cardID, int32(deviceID))
+			if err != nil {
+				level.Error(logger).Log("msg", "error on get device hbm info id %s", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_size", "", nil, tags),
 				prometheus.CounterValue, float64(highBandwidthMemoryInfo.MemorySize))
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_frequency", "", nil, tags),
 				prometheus.CounterValue, float64(highBandwidthMemoryInfo.Frequency))
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_usage", "", nil, tags),
-				prometheus.CounterValue, float64(highBandwidthMemoryInfo.Usage))
+				prometheus.CounterValue, float64(highBandwidthMemoryInfo.MemorySize-highBandwidthMemoryInfo.MemoryAvailable))
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_utilization", "", nil, tags),
+				prometheus.CounterValue, float64(highBandwidthMemoryInfo.Utilization))
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_temp", "", nil, tags),
-				prometheus.CounterValue, float64(highBandwidthMemoryInfo.Temp))
+				prometheus.CounterValue, float64(highBandwidthMemoryInfo1.Temp))
 			devProcessInfo, err := deviceManager.DcGetDevProcessInfo(cardID, int32(deviceID))
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device devProcessInfo id %s", err)
