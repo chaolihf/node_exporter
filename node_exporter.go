@@ -210,7 +210,7 @@ func Main(fileLogger *zap.Logger) {
 	defer func() {
 		fileLogger.Sync()
 		if r := recover(); r != nil {
-			fileLogger.Info(fmt.Sprintf("node_exporter退出原因:", r))
+			fileLogger.Info(fmt.Sprintf("node_exporter退出原因:%s", r))
 			fmt.Println("node_exporter退出原因:", r)
 		} else {
 			fileLogger.Info("node_exporter正常退出")
@@ -261,13 +261,13 @@ func Main(fileLogger *zap.Logger) {
 	if *disableDefaultCollectors {
 		collector.DisableDefaultCollectors()
 	}
-	level.Info(logger).Log("msg", "Starting node_exporter", "version", version.Info())
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
+	fileLogger.Info("Starting node_exporter", zap.String("version", version.Info()))
+	fileLogger.Info("Build context", zap.String("build_context", version.BuildContext()))
 	if user, err := user.Current(); err == nil && user.Uid == "0" {
-		level.Warn(logger).Log("msg", "Node Exporter is running as root user. This exporter is designed to run as unprivileged user, root is not required.")
+		fileLogger.Warn("Node Exporter is running as root user. This exporter is designed to run as unprivileged user, root is not required.")
 	}
 	runtime.GOMAXPROCS(*maxProcs)
-	level.Debug(logger).Log("msg", "Go MAXPROCS", "procs", runtime.GOMAXPROCS(0))
+	fileLogger.Info(fmt.Sprintf("Go MAXPROCS: %d", runtime.GOMAXPROCS(0)))
 
 	http.Handle(*metricsPath, newHandler(!*disableExporterMetrics, *maxRequests, logger))
 	if *metricsPath != "/" {
@@ -293,7 +293,7 @@ func Main(fileLogger *zap.Logger) {
 
 	err = initReadConfig()
 	if err != nil {
-		level.Info(logger).Log("msg", "Reading config.json err:", err)
+		fileLogger.Error(fmt.Sprintf("读取配置文件出错:%s", err))
 	}
 	if enableHadoopExporter {
 		_, err = os.Stat("hadoopConfig.json")
@@ -372,10 +372,20 @@ func Main(fileLogger *zap.Logger) {
 	server := &http.Server{
 		ReadTimeout: time.Duration(readTimeout) * time.Second,
 		TLSConfig:   tlsconf,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case strings.HasPrefix(r.URL.Path, "/debug/vars"),
+				strings.HasPrefix(r.URL.Path, "/debug/pprof"):
+				http.NotFound(w, r)
+				return // 关键：立即终止处理流程
+			default:
+				http.DefaultServeMux.ServeHTTP(w, r)
+			}
+		}),
 	}
 
 	if err := web.ListenAndServe(server, toolkitFlags, logger); err != nil {
-		level.Error(logger).Log("err", err)
+		fileLogger.Error(fmt.Sprintf("启动node_exporter失败:%s", err))
 		os.Exit(1)
 	}
 
