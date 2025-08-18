@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chaolihf/gopsutil/process"
 	jjson "github.com/chaolihf/udpgo/json"
@@ -611,15 +612,24 @@ func appendDesigned(item ProcessInfo, collector *ProcessCollector, cmd string) D
 	return pi
 }
 
+// 替换无效字符为?
+func sanitizeUTF8(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	} else {
+		return strings.ToValidUTF8(s, "?")
+	}
+}
+
 /*
 创建进程指标
 metricType : 0表示全量 1表示增量加 2表示增量更新 3表示增量删除
 */
 func createProcessMetric(item *ProcessInfo, metricType int) prometheus.Metric {
 	var tags = make(map[string]string)
-	tags["username"] = item.username
-	tags["name"] = item.name
-	tags["command"] = item.command
+	tags["username"] = sanitizeUTF8(item.username)
+	tags["name"] = sanitizeUTF8(item.name)
+	tags["command"] = sanitizeUTF8(item.command)
 	tags["rss"] = fmt.Sprintf("%d", item.rss)
 	tags["vms"] = fmt.Sprintf("%d", item.vms)
 	tags["numThread"] = fmt.Sprintf("%d", item.numThread)
@@ -628,7 +638,7 @@ func createProcessMetric(item *ProcessInfo, metricType int) prometheus.Metric {
 	tags["parentId"] = fmt.Sprintf("%d", item.parentId)
 	tags["pid"] = fmt.Sprintf("%d", item.pid)
 	tags["cpu"] = fmt.Sprintf("%f", item.cpu)
-	tags["exec"] = item.exec
+	tags["exec"] = sanitizeUTF8(item.exec)
 	tags["readBytes"] = fmt.Sprintf("%d", item.readBytes)
 	tags["writeBytes"] = fmt.Sprintf("%d", item.writeBytes)
 	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
@@ -645,9 +655,9 @@ metricType : 0表示全量 1表示增量加 2表示增量更新 3表示增量删
 */
 func createDesignedProcessMetric(item *DesignedProcessInfo, metricType int) prometheus.Metric {
 	var tags = make(map[string]string)
-	tags["username"] = item.username
-	tags["name"] = item.name
-	tags["command"] = item.command
+	tags["username"] = sanitizeUTF8(item.username)
+	tags["name"] = sanitizeUTF8(item.name)
+	tags["command"] = sanitizeUTF8(item.command)
 	tags["rss"] = fmt.Sprintf("%d", item.rss)
 	tags["vms"] = fmt.Sprintf("%d", item.vms)
 	tags["numThread"] = fmt.Sprintf("%d", item.numThread)
@@ -656,7 +666,7 @@ func createDesignedProcessMetric(item *DesignedProcessInfo, metricType int) prom
 	tags["parentId"] = fmt.Sprintf("%d", item.parentId)
 	tags["pid"] = fmt.Sprintf("%d", item.pid)
 	tags["cpu"] = fmt.Sprintf("%f", item.cpu)
-	tags["exec"] = item.exec
+	tags["exec"] = sanitizeUTF8(item.exec)
 	tags["readBytes"] = fmt.Sprintf("%d", item.readBytes)
 	tags["writeBytes"] = fmt.Sprintf("%d", item.writeBytes)
 	tags["readCount"] = fmt.Sprintf("%d", item.readCount)
