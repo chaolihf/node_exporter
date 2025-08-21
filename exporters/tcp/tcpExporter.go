@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,7 +28,7 @@ var isTcpInited = false
 var logger log.Logger
 var (
 	configFile                     = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
-	sc                             = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
+	sc                             = NewSafeConfig(prometheus.DefaultRegisterer)
 	sslEarliestCertExpiryGaugeOpts = prometheus.GaugeOpts{
 		Name: "probe_ssl_earliest_cert_expiry",
 		Help: helpSSLEarliestCertExpiry,
@@ -97,7 +96,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
-func dialTCP(ctx context.Context, target string, module icmp.Module, registry *prometheus.Registry, logger log.Logger) (net.Conn, error) {
+func dialTCP(ctx context.Context, target string, module Module, registry *prometheus.Registry, logger log.Logger) (net.Conn, error) {
 	var dialProtocol, dialTarget string
 	dialer := &net.Dialer{}
 	targetAddress, port, err := net.SplitHostPort(target)
