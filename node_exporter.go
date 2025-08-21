@@ -36,6 +36,7 @@ import (
 	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/chaolihf/node_exporter/exporters/npu"
 	"github.com/chaolihf/node_exporter/exporters/switchs"
+	"github.com/chaolihf/node_exporter/exporters/tcp"
 	jjson "github.com/chaolihf/udpgo/json"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -72,6 +73,7 @@ var (
 	enableGpuExporter      bool = false
 	enableNpuExporter      bool = false
 	enableDnsExporter      bool = false
+	enableTcpExporter      bool = false
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -194,6 +196,8 @@ func initReadConfig() error {
 					enableGpuExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "npu_exporter" {
 					enableNpuExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "tcp_exporter" {
+					enableTcpExporter = true
 				}
 
 			}
@@ -341,6 +345,14 @@ func Main(fileLogger *zap.Logger) {
 			dns.RequestHandler(w, r)
 		})
 		dns.SetLogger(logger)
+
+	}
+
+	if enableTcpExporter {
+		http.HandleFunc("/tcpMetrics", func(w http.ResponseWriter, r *http.Request) {
+			tcp.RequestHandler(w, r)
+		})
+		tcp.SetLogger(logger)
 
 	}
 
