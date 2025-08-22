@@ -38,8 +38,9 @@ func init() {
 	Sc.Lock()
 	Conf = Sc.C
 	Sc.Unlock()
-	if err := Sc.ReloadConfig(*configFile, logger); err != nil {
-		level.Error(logger).Log("msg", "Error loading config", "err", err)
+	initLogger := log.NewNopLogger()
+	if err := Sc.ReloadConfig(*configFile, initLogger); err != nil {
+		level.Error(initLogger).Log("msg", "Error loading config", "err", err)
 	}
 }
 
