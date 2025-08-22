@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/chaolihf/node_exporter/exporters/dns"
 	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/go-kit/log"
@@ -29,8 +28,6 @@ const (
 var isTcpInited = false
 var logger log.Logger
 var (
-	configFile = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
-	// sc                             = NewSafeConfig(prometheus.DefaultRegisterer)
 	sslEarliestCertExpiryGaugeOpts = prometheus.GaugeOpts{
 		Name: "probe_ssl_earliest_cert_expiry",
 		Help: helpSSLEarliestCertExpiry,
