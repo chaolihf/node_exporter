@@ -29,9 +29,19 @@ import (
 var logger log.Logger
 var isDnsInited = false
 var (
-	sc         = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
+	Conf       *icmp.Config
+	Sc         = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
 	configFile = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
 )
+
+func init() {
+	Sc.Lock()
+	Conf = Sc.C
+	Sc.Unlock()
+	if err := Sc.ReloadConfig(*configFile, logger); err != nil {
+		level.Error(logger).Log("msg", "Error loading config", "err", err)
+	}
+}
 
 func SetLogger(globalLogger log.Logger) {
 	if !isDnsInited {
@@ -212,13 +222,7 @@ func validRcode(rcode int, valid []string, logger log.Logger) bool {
 }
 
 func ProbeDNS(target string, registry *prometheus.Registry, moduleName string, w http.ResponseWriter) (bool, string) {
-	sc.Lock()
-	conf := sc.C
-	sc.Unlock()
-	if err := sc.ReloadConfig(*configFile, logger); err != nil {
-		level.Error(logger).Log("msg", "Error loading config", "err", err)
-	}
-	module, ok := conf.Modules[moduleName]
+	module, ok := Conf.Modules[moduleName]
 	if !ok {
 		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
 		w.WriteHeader(http.StatusBadRequest)
@@ -301,7 +305,7 @@ func ProbeDNS(target string, registry *prometheus.Registry, moduleName string, w
 		}
 		targetAddr = target
 	}
-	ip, lookupTime, err := chooseProtocol(ctx, module.DNS.IPProtocol, module.DNS.IPProtocolFallback, targetAddr, registry, logger)
+	ip, lookupTime, err := ChooseProtocol(ctx, module.DNS.IPProtocol, module.DNS.IPProtocolFallback, targetAddr, registry, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "Error resolving address", "err", err)
 		return false, transportProtocol

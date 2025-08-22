@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
+	"github.com/chaolihf/node_exporter/exporters/dns"
+	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,8 +29,8 @@ const (
 var isTcpInited = false
 var logger log.Logger
 var (
-	configFile                     = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
-	sc                             = NewSafeConfig(prometheus.DefaultRegisterer)
+	configFile = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
+	// sc                             = NewSafeConfig(prometheus.DefaultRegisterer)
 	sslEarliestCertExpiryGaugeOpts = prometheus.GaugeOpts{
 		Name: "probe_ssl_earliest_cert_expiry",
 		Help: helpSSLEarliestCertExpiry,
@@ -96,7 +98,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
-func dialTCP(ctx context.Context, target string, module Module, registry *prometheus.Registry, logger log.Logger) (net.Conn, error) {
+func dialTCP(ctx context.Context, target string, module icmp.Module, registry *prometheus.Registry, logger log.Logger) (net.Conn, error) {
 	var dialProtocol, dialTarget string
 	dialer := &net.Dialer{}
 	targetAddress, port, err := net.SplitHostPort(target)
@@ -105,7 +107,7 @@ func dialTCP(ctx context.Context, target string, module Module, registry *promet
 		return nil, err
 	}
 
-	ip, _, err := chooseProtocol(ctx, module.TCP.IPProtocol, module.TCP.IPProtocolFallback, targetAddress, registry, logger)
+	ip, _, err := dns.ChooseProtocol(ctx, module.TCP.IPProtocol, module.TCP.IPProtocolFallback, targetAddress, registry, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "Error resolving address", "err", err)
 		return nil, err
@@ -157,9 +159,10 @@ func dialTCP(ctx context.Context, target string, module Module, registry *promet
 }
 
 func ProbeTCP(target string, moduleName string, registry *prometheus.Registry, w http.ResponseWriter) bool {
-	sc.Lock()
-	conf := sc.C
-	sc.Unlock()
+	// sc.Lock()
+	// conf := sc.C
+	// sc.Unlock()
+	conf := dns.Conf
 	probeSSLEarliestCertExpiry := prometheus.NewGauge(sslEarliestCertExpiryGaugeOpts)
 	probeSSLLastChainExpiryTimestampSeconds := prometheus.NewGauge(sslChainExpiryInTimeStampGaugeOpts)
 	probeSSLLastInformation := prometheus.NewGaugeVec(
@@ -179,9 +182,9 @@ func ProbeTCP(target string, moduleName string, registry *prometheus.Registry, w
 	})
 	ctx, _ := context.WithDeadline(context.Background(),
 		time.Now().Add(time.Duration(5)*time.Second))
-	if err := sc.ReloadConfig(*configFile, logger); err != nil {
-		level.Error(logger).Log("msg", "Error loading config", "err", err)
-	}
+	// if err := sc.ReloadConfig(*configFile, logger); err != nil {
+	// 	level.Error(logger).Log("msg", "Error loading config", "err", err)
+	// }
 	module, ok := conf.Modules[moduleName]
 	if !ok {
 		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
