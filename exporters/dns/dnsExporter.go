@@ -29,20 +29,9 @@ import (
 var logger log.Logger
 var isDnsInited = false
 var (
-	Conf       *icmp.Config
-	Sc         = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
-	configFile = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
+	sc         = icmp.NewSafeConfig(prometheus.DefaultRegisterer)
+	ConfigFile = kingpin.Flag("config.file", "Blackbox exporter configuration file.").Default("blackbox.yml").String()
 )
-
-func init() {
-	Sc.Lock()
-	Conf = Sc.C
-	Sc.Unlock()
-	initLogger := log.NewNopLogger()
-	if err := Sc.ReloadConfig(*configFile, initLogger); err != nil {
-		level.Error(initLogger).Log("msg", "Error loading config", "err", err)
-	}
-}
 
 func SetLogger(globalLogger log.Logger) {
 	if !isDnsInited {
@@ -223,11 +212,17 @@ func validRcode(rcode int, valid []string, logger log.Logger) bool {
 }
 
 func ProbeDNS(target string, registry *prometheus.Registry, moduleName string, w http.ResponseWriter) (bool, string) {
-	module, ok := Conf.Modules[moduleName]
+	sc.Lock()
+	conf := sc.C
+	sc.Unlock()
+	if err := sc.ReloadConfig(*ConfigFile, logger); err != nil {
+		level.Error(logger).Log("msg", "Error loading config", "err", err)
+	}
+	module, ok := conf.Modules[moduleName]
 	if !ok {
 		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("missing module parameter!"))
+		w.Write([]byte("unkown module parameter!"))
 		return false, ""
 	}
 	transportProtocol := module.DNS.TransportProtocol
