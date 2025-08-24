@@ -71,8 +71,21 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	registry := prometheus.NewRegistry()
+	sc := icmp.NewSafeConfig(registry)
+	if err := sc.ReloadConfig(*dns.ConfigFile, logger); err != nil {
+		level.Error(logger).Log("msg", "Error loading config", "err", err)
+	}
+	sc.Lock()
+	conf := sc.C
+	sc.Unlock()
+	module, ok := conf.Modules[moduleName]
+	if !ok {
+		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("unkown module parameter!"))
+	}
 	start := time.Now()
-	success := ProbeTCP(targetName, moduleName, registry, w)
+	success := ProbeTCP(targetName, module, registry, w)
 	duration := time.Since(start).Seconds()
 	probeSuccessGauge := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_success",
@@ -155,11 +168,7 @@ func dialTCP(ctx context.Context, target string, module icmp.Module, registry *p
 	return tls.DialWithDialer(dialer, dialProtocol, dialTarget, tlsConfig)
 }
 
-func ProbeTCP(target string, moduleName string, registry *prometheus.Registry, w http.ResponseWriter) bool {
-	// sc.Lock()
-	// conf := sc.C
-	// sc.Unlock()
-	conf := dns.Conf
+func ProbeTCP(target string, module icmp.Module, registry *prometheus.Registry, w http.ResponseWriter) bool {
 	probeSSLEarliestCertExpiry := prometheus.NewGauge(sslEarliestCertExpiryGaugeOpts)
 	probeSSLLastChainExpiryTimestampSeconds := prometheus.NewGauge(sslChainExpiryInTimeStampGaugeOpts)
 	probeSSLLastInformation := prometheus.NewGaugeVec(
@@ -179,16 +188,6 @@ func ProbeTCP(target string, moduleName string, registry *prometheus.Registry, w
 	})
 	ctx, _ := context.WithDeadline(context.Background(),
 		time.Now().Add(time.Duration(5)*time.Second))
-	// if err := sc.ReloadConfig(*configFile, logger); err != nil {
-	// 	level.Error(logger).Log("msg", "Error loading config", "err", err)
-	// }
-	module, ok := conf.Modules[moduleName]
-	if !ok {
-		level.Debug(logger).Log("msg", "Unknown module", "module", moduleName)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("missing module parameter!"))
-		return false
-	}
 
 	registry.MustRegister(probeFailedDueToRegex)
 	deadline, _ := ctx.Deadline()
