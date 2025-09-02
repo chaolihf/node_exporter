@@ -88,11 +88,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	success := ProbeTCP(targetName, module, registry, w)
 	duration := time.Since(start).Seconds()
 	probeSuccessGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "probe_success",
+		Name: "tcp_probe_success",
 		Help: "Displays whether or not the probe was a success",
 	})
 	probeDurationGauge := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "probe_duration_seconds",
+		Name: "tcp_probe_duration_seconds",
 		Help: "Returns how long the probe took to complete in seconds",
 	})
 	registry.MustRegister(probeSuccessGauge)
