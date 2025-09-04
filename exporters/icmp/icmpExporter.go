@@ -5,6 +5,7 @@
 package icmp
 
 import (
+	"bytes"
 	"context"
 	"math/rand"
 	"net"
@@ -432,7 +433,7 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 			durations = append(durations, time.Since(start).Seconds())
 			continue
 		}
-		rb := make([]byte, 1500)
+		rb := make([]byte, 65536)
 		icmpConn.SetReadDeadline(time.Now().Add(time.Duration(plugin.Deadline) * time.Second))
 		n, _, err := icmpConn.ReadFrom(rb)
 		if err != nil {
@@ -443,7 +444,10 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 		}
 		rm, err := icmp.ParseMessage(1, rb[:n])
 		if err == nil {
-			if echo, ok := rm.Body.(*icmp.Echo); ok && echo.ID == body.ID && echo.Seq == body.Seq {
+			// if echo, ok := rm.Body.(*icmp.Echo); ok && echo.ID == body.ID && echo.Seq == body.Seq {
+			// 	successCount++
+			// }
+			if bytes.Equal(rb[:n], wb) {
 				successCount++
 			} else {
 				level.Error(logger).Log("msg", "Got invalid ICMP reply", "msg", rm)
