@@ -402,12 +402,15 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 	}
 	defer icmpConn.Close()
 
+	// 为本次探测分配一个随机ID
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	batchID := r.Intn(1 << 16)
+
 	for i := 0; i < count; i++ {
 		start := time.Now()
-		seq := rand.Intn(1 << 16)
 		body := &icmp.Echo{
-			ID:   rand.Intn(1 << 16),
-			Seq:  seq,
+			ID:   batchID, // 使用本次探测的ID
+			Seq:  int(getICMPSequence()),
 			Data: []byte("Prometheus Blackbox Exporter"),
 		}
 		wm := icmp.Message{
