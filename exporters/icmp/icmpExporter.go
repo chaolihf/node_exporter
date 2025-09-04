@@ -5,7 +5,6 @@
 package icmp
 
 import (
-	"bytes"
 	"context"
 	"math/rand"
 	"net"
@@ -444,11 +443,10 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 		}
 		rm, err := icmp.ParseMessage(1, rb[:n])
 		if err == nil {
-			// if echo, ok := rm.Body.(*icmp.Echo); ok && echo.ID == body.ID && echo.Seq == body.Seq {
-			// 	successCount++
-			// }
-			if bytes.Equal(rb[:n], wb) {
-				successCount++
+			if echo, ok := rm.Body.(*icmp.Echo); ok {
+				if echo.ID == batchID && echo.Seq == body.Seq {
+					successCount++
+				}
 			} else {
 				level.Error(logger).Log("msg", "Got invalid ICMP reply", "msg", rm)
 				lossCount++
