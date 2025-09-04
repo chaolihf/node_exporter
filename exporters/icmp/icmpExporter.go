@@ -130,8 +130,6 @@ type ICMPScriptPlugin struct {
 	IPProtocolFallback bool   `yaml:"ip_protocol_fallback,omitempty"`
 }
 
-var plugin *ICMPScriptPlugin
-
 func NewICMPScriptPlugin(logger log.Logger) *ICMPScriptPlugin {
 	return &ICMPScriptPlugin{
 		logger:             logger,
@@ -197,6 +195,7 @@ func createTracerouteMetric(tracerouteResult string) prometheus.Metric {
 }
 
 func getIcmpResult(targetName string) []prometheus.Metric {
+	localPlugin := NewICMPScriptPlugin(logger)
 	var metrics []prometheus.Metric
 	probeSuccessGauge := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "probe_success",
@@ -220,7 +219,7 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 	})
 
 	// 使用批量探测
-	successCount, durations, lossCount := probeICMPBatch(plugin, targetName, packetNum)
+	successCount, durations, lossCount := probeICMPBatch(localPlugin, targetName, packetNum)
 
 	// 统计指标
 	if successCount > 0 {
@@ -365,7 +364,7 @@ func init() {
 	}
 
 	//初始化ICMP采集配置
-	plugin = NewICMPScriptPlugin(logger)
+	// plugin = NewICMPScriptPlugin(logger)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	// PID is typically 1 when running in a container; in that case, set
 	// the ICMP echo ID to a random value to avoid potential clashes with
@@ -386,8 +385,10 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 	var (
 		icmpConn *icmp.PacketConn
 	)
+	ctx, _ := context.WithDeadline(context.Background(),
+		time.Now().Add(time.Duration(plugin.Deadline)*time.Second))
 	// 解析目标地址
-	dstIPAddr, _, err, _, _ := chooseProtocol(nil, plugin.IPProtocol, plugin.IPProtocolFallback, target, logger)
+	dstIPAddr, _, err, _, _ := chooseProtocol(ctx, plugin.IPProtocol, plugin.IPProtocolFallback, target, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "Error resolving address", "err", err)
 		return
