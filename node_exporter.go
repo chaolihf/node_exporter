@@ -207,10 +207,6 @@ func initReadConfig() error {
 }
 func Main(fileLogger *zap.Logger) {
 
-	http.HandleFunc("/debug/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("404 page not found\n"))
-	})
-
 	defer func() {
 		fileLogger.Sync()
 		if r := recover(); r != nil {

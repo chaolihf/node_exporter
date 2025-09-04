@@ -382,6 +382,7 @@ func init() {
 }
 
 func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (successCount int, durations []float64, lossCount int) {
+	level.Info(logger).Log("msg", "Probing target", "target", target, "count", count)
 	var (
 		icmpConn *icmp.PacketConn
 	)
@@ -393,7 +394,7 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 		level.Error(logger).Log("msg", "Error resolving address", "err", err)
 		return
 	}
-
+	level.Info(logger).Log("msg", "Using target address", "addr", dstIPAddr.String())
 	// 创建socket（这里只演示IPv4，IPv6同理）
 	srcIP := net.ParseIP("0.0.0.0")
 	icmpConn, err = icmp.ListenPacket("ip4:icmp", srcIP.String())
@@ -403,10 +404,12 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 	}
 	defer icmpConn.Close()
 
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	batchID := r.Intn(1 << 16)
 	for i := 0; i < count; i++ {
 		start := time.Now()
 		body := &icmp.Echo{
-			ID:   icmpID,
+			ID:   batchID, // 用独立ID
 			Seq:  int(getICMPSequence()),
 			Data: []byte("Prometheus Blackbox Exporter"),
 		}
@@ -417,12 +420,14 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 		}
 		wb, err := wm.Marshal(nil)
 		if err != nil {
+			level.Error(logger).Log("msg", "Error marshalling packet", "err", err)
 			lossCount++
 			durations = append(durations, time.Since(start).Seconds())
 			continue
 		}
 		_, err = icmpConn.WriteTo(wb, dstIPAddr)
 		if err != nil {
+			level.Error(logger).Log("msg", "Error writing to socket", "err", err)
 			lossCount++
 			durations = append(durations, time.Since(start).Seconds())
 			continue
@@ -431,6 +436,7 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 		icmpConn.SetReadDeadline(time.Now().Add(time.Duration(plugin.Deadline) * time.Second))
 		n, _, err := icmpConn.ReadFrom(rb)
 		if err != nil {
+			level.Error(logger).Log("msg", "Error reading from socket", "err", err)
 			lossCount++
 			durations = append(durations, time.Since(start).Seconds())
 			continue
@@ -440,9 +446,11 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 			if echo, ok := rm.Body.(*icmp.Echo); ok && echo.ID == body.ID && echo.Seq == body.Seq {
 				successCount++
 			} else {
+				level.Error(logger).Log("msg", "Got invalid ICMP reply", "msg", rm)
 				lossCount++
 			}
 		} else {
+			level.Error(logger).Log("msg", "Error parsing ICMP message", "err", err)
 			lossCount++
 		}
 		durations = append(durations, time.Since(start).Seconds())
