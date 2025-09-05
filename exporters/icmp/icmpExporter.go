@@ -930,11 +930,13 @@ func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, probeCount int) (suc
 	durations = make([]float64, 0, probeCount)
 	successCount = 0
 
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	batchID := r.Intn(1 << 16)
 	for i := 0; i < probeCount; i++ {
 		body := &icmp.Echo{
-			ID:   icmpID,
+			ID:   batchID, // 用独立ID
 			Seq:  int(getICMPSequence()),
-			Data: data,
+			Data: []byte("Prometheus Blackbox Exporter"),
 		}
 		level.Info(logger).Log("msg", "Creating ICMP packet", "seq", body.Seq, "id", body.ID)
 		wm := icmp.Message{
