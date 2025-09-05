@@ -5,12 +5,14 @@
 package icmp
 
 import (
+	"bytes"
 	"context"
 	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -26,6 +28,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -219,7 +222,7 @@ func getIcmpResult(targetName string) []prometheus.Metric {
 	})
 
 	// 使用批量探测
-	successCount, durations, lossCount := probeICMPBatch(localPlugin, targetName, packetNum)
+	successCount, durations, lossCount := ProbeICMP(localPlugin, targetName, packetNum)
 
 	// 统计指标
 	if successCount > 0 {
@@ -780,3 +783,312 @@ func probeICMPBatch(plugin *ICMPScriptPlugin, target string, count int) (success
 // 		}
 // 	}
 // }
+
+func ProbeICMP(thisPlugin *ICMPScriptPlugin, target string, probeCount int) (successCount int, durations []float64, lossCount int) {
+	var (
+		requestType     icmp.Type
+		replyType       icmp.Type
+		icmpConn        *icmp.PacketConn
+		v4RawConn       *ipv4.RawConn
+		hopLimitFlagSet bool = true
+
+		durationGaugeVec = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "probe_icmp_duration_seconds",
+			Help: "Duration of icmp request by phase",
+		}, []string{"phase"})
+
+		hopLimitGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "probe_icmp_reply_hop_limit",
+			Help: "Replied packet hop limit (TTL for ipv4)",
+		})
+	)
+
+	for _, lv := range []string{"resolve", "setup", "rtt"} {
+		durationGaugeVec.WithLabelValues(lv)
+	}
+
+	dstIPAddr, lookupTime, err, _, _ := chooseProtocol(nil, thisPlugin.IPProtocol, thisPlugin.IPProtocolFallback, target, logger)
+	if err != nil {
+		level.Error(logger).Log("msg", "Error resolving address", "err", err)
+		return
+	}
+	durationGaugeVec.WithLabelValues("resolve").Add(lookupTime)
+
+	var srcIP net.IP
+	if len(thisPlugin.sourceIPAddress) > 0 {
+		if srcIP = net.ParseIP(thisPlugin.sourceIPAddress); srcIP == nil {
+			level.Error(logger).Log("msg", "Error parsing source ip address", "srcIP", thisPlugin.sourceIPAddress)
+			return
+		}
+		level.Info(logger).Log("msg", "Using source address", "srcIP", srcIP)
+	}
+
+	setupStart := time.Now()
+	level.Info(logger).Log("msg", "Creating socket")
+
+	privileged := true
+	tryUnprivileged := runtime.GOOS == "darwin" || runtime.GOOS == "linux"
+
+	if dstIPAddr.IP.To4() == nil {
+		requestType = ipv6.ICMPTypeEchoRequest
+		replyType = ipv6.ICMPTypeEchoReply
+
+		if srcIP == nil {
+			srcIP = net.ParseIP("::")
+		}
+
+		if tryUnprivileged {
+			icmpConn, err = icmp.ListenPacket("udp6", srcIP.String())
+			if err != nil {
+				level.Debug(logger).Log("msg", "Unable to do unprivileged listen on socket, will attempt privileged", "err", err)
+			} else {
+				privileged = false
+			}
+		}
+
+		if privileged {
+			icmpConn, err = icmp.ListenPacket("ip6:ipv6-icmp", srcIP.String())
+			if err != nil {
+				level.Error(logger).Log("msg", "Error listening to socket", "err", err)
+				return
+			}
+		}
+		defer icmpConn.Close()
+
+		if err := icmpConn.IPv6PacketConn().SetControlMessage(ipv6.FlagHopLimit, true); err != nil {
+			level.Debug(logger).Log("msg", "Failed to set Control Message for retrieving Hop Limit", "err", err)
+			hopLimitFlagSet = false
+		}
+	} else {
+		requestType = ipv4.ICMPTypeEcho
+		replyType = ipv4.ICMPTypeEchoReply
+
+		if srcIP == nil {
+			srcIP = net.ParseIP("0.0.0.0")
+		}
+
+		if thisPlugin.DontFragment {
+			netConn, err := net.ListenPacket("ip4:icmp", srcIP.String())
+			if err != nil {
+				level.Error(logger).Log("msg", "Error listening to socket", "err", err)
+				return
+			}
+			defer netConn.Close()
+
+			v4RawConn, err = ipv4.NewRawConn(netConn)
+			if err != nil {
+				level.Error(logger).Log("msg", "Error creating raw connection", "err", err)
+				return
+			}
+			defer v4RawConn.Close()
+
+			if err := v4RawConn.SetControlMessage(ipv4.FlagTTL, true); err != nil {
+				level.Debug(logger).Log("msg", "Failed to set Control Message for retrieving TTL", "err", err)
+				hopLimitFlagSet = false
+			}
+		} else {
+			if tryUnprivileged {
+				icmpConn, err = icmp.ListenPacket("udp4", srcIP.String())
+				if err != nil {
+					level.Debug(logger).Log("msg", "Unable to do unprivileged listen on socket, will attempt privileged", "err", err)
+				} else {
+					privileged = false
+				}
+			}
+
+			if privileged {
+				icmpConn, err = icmp.ListenPacket("ip4:icmp", srcIP.String())
+				if err != nil {
+					level.Error(logger).Log("msg", "Error listening to socket", "err", err)
+					return
+				}
+			}
+			defer icmpConn.Close()
+
+			if err := icmpConn.IPv4PacketConn().SetControlMessage(ipv4.FlagTTL, true); err != nil {
+				level.Debug(logger).Log("msg", "Failed to set Control Message for retrieving TTL", "err", err)
+				hopLimitFlagSet = false
+			}
+		}
+	}
+
+	var dst net.Addr = dstIPAddr
+	if !privileged {
+		dst = &net.UDPAddr{IP: dstIPAddr.IP, Zone: dstIPAddr.Zone}
+	}
+
+	var data []byte
+	if thisPlugin.PayloadSize != 0 {
+		data = make([]byte, thisPlugin.PayloadSize)
+		copy(data, "Prometheus Blackbox Exporter")
+	} else {
+		data = []byte("Prometheus Blackbox Exporter")
+	}
+
+	durationGaugeVec.WithLabelValues("setup").Add(time.Since(setupStart).Seconds())
+
+	durations = make([]float64, 0, probeCount)
+	successCount = 0
+
+	for i := 0; i < probeCount; i++ {
+		body := &icmp.Echo{
+			ID:   icmpID,
+			Seq:  int(getICMPSequence()),
+			Data: data,
+		}
+		level.Info(logger).Log("msg", "Creating ICMP packet", "seq", body.Seq, "id", body.ID)
+		wm := icmp.Message{
+			Type: requestType,
+			Code: 0,
+			Body: body,
+		}
+
+		wb, err := wm.Marshal(nil)
+		if err != nil {
+			level.Error(logger).Log("msg", "Error marshalling packet", "err", err)
+			durations = append(durations, 0)
+			continue
+		}
+
+		rttStart := time.Now()
+		if icmpConn != nil {
+			ttl := thisPlugin.TTL
+			if ttl > 0 {
+				if c4 := icmpConn.IPv4PacketConn(); c4 != nil {
+					level.Debug(logger).Log("msg", "Setting TTL (IPv4 unprivileged)", "ttl", ttl)
+					c4.SetTTL(ttl)
+				}
+				if c6 := icmpConn.IPv6PacketConn(); c6 != nil {
+					level.Debug(logger).Log("msg", "Setting TTL (IPv6 unprivileged)", "ttl", ttl)
+					c6.SetHopLimit(ttl)
+				}
+			}
+			_, err = icmpConn.WriteTo(wb, dst)
+		} else {
+			ttl := thisPlugin.TTL
+			if thisPlugin.TTL > 0 {
+				level.Debug(logger).Log("msg", "Overriding TTL (raw IPv4)", "ttl", ttl)
+				ttl = thisPlugin.TTL
+			}
+			header := &ipv4.Header{
+				Version:  ipv4.Version,
+				Len:      ipv4.HeaderLen,
+				Protocol: 1,
+				TotalLen: ipv4.HeaderLen + len(wb),
+				TTL:      ttl,
+				Dst:      dstIPAddr.IP,
+				Src:      srcIP,
+			}
+			header.Flags |= ipv4.DontFragment
+			err = v4RawConn.WriteTo(header, wb, nil)
+		}
+		if err != nil {
+			level.Warn(logger).Log("msg", "Error writing to socket", "err", err)
+			durations = append(durations, 0)
+			continue
+		}
+
+		wm.Type = replyType
+		idUnknown := !privileged && runtime.GOOS == "linux"
+		if idUnknown {
+			body.ID = 0
+		}
+		wbReply, err := wm.Marshal(nil)
+		if err != nil {
+			level.Error(logger).Log("msg", "Error marshalling packet", "err", err)
+			durations = append(durations, 0)
+			continue
+		}
+		if idUnknown {
+			wbReply[2] = 0
+			wbReply[3] = 0
+		}
+
+		rb := make([]byte, 65536)
+		// 为每次探测设置单独的超时时间
+		perProbeTimeout := 2 * time.Second
+		deadline := time.Now().Add(perProbeTimeout)
+		if icmpConn != nil {
+			err = icmpConn.SetReadDeadline(deadline)
+		} else {
+			err = v4RawConn.SetReadDeadline(deadline)
+		}
+		if err != nil {
+			level.Error(logger).Log("msg", "Error setting socket deadline", "err", err)
+			durations = append(durations, 0)
+			continue
+		}
+
+		level.Info(logger).Log("msg", "Waiting for reply packet", "probe", i+1)
+		successProbe := false
+		for {
+			var n int
+			var peer net.Addr
+			var err error
+			var hopLimit float64 = -1
+
+			if dstIPAddr.IP.To4() == nil {
+				var cm *ipv6.ControlMessage
+				n, cm, peer, err = icmpConn.IPv6PacketConn().ReadFrom(rb)
+				if cm != nil && hopLimitFlagSet {
+					hopLimit = float64(cm.HopLimit)
+				}
+			} else {
+				var cm *ipv4.ControlMessage
+				if icmpConn != nil {
+					n, cm, peer, err = icmpConn.IPv4PacketConn().ReadFrom(rb)
+				} else {
+					var h *ipv4.Header
+					var p []byte
+					h, p, cm, err = v4RawConn.ReadFrom(rb)
+					if err == nil {
+						copy(rb, p)
+						n = len(p)
+						peer = &net.IPAddr{IP: h.Src}
+					}
+				}
+				if cm != nil && hopLimitFlagSet {
+					hopLimit = float64(cm.TTL)
+				}
+			}
+			if err != nil {
+				if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+					level.Warn(logger).Log("msg", "Timeout reading from socket", "err", err)
+					break
+				}
+				level.Error(logger).Log("msg", "Error reading from socket", "err", err)
+				break
+			}
+			if peer.String() != dst.String() {
+				continue
+			}
+			if idUnknown {
+				rb[4] = 0
+				rb[5] = 0
+			}
+			if idUnknown || replyType == ipv6.ICMPTypeEchoReply {
+				rb[2] = 0
+				rb[3] = 0
+			}
+			if bytes.Equal(rb[:n], wbReply) {
+				duration := time.Since(rttStart).Seconds()
+				durations = append(durations, duration)
+				if hopLimit >= 0 {
+					hopLimitGauge.Set(hopLimit)
+				}
+				level.Info(logger).Log("msg", "Found matching reply packet", "probe", i+1)
+				successCount++
+				successProbe = true
+				break
+			}
+		}
+		if !successProbe {
+			durations = append(durations, 0)
+		}
+		// 可选：每次探测间隔一点时间
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	lossCount = probeCount - successCount
+	return
+}
