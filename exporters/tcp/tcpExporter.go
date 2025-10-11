@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/chaolihf/node_exporter/exporters/dns"
-	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -71,7 +70,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	registry := prometheus.NewRegistry()
-	sc := icmp.NewSafeConfig(registry)
+	sc := NewSafeConfig(registry)
 	if err := sc.ReloadConfig(*dns.ConfigFile, logger); err != nil {
 		level.Error(logger).Log("msg", "Error loading config", "err", err)
 	}
@@ -108,7 +107,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
-func dialTCP(ctx context.Context, target string, module icmp.Module, registry *prometheus.Registry, logger log.Logger) (net.Conn, error) {
+func dialTCP(ctx context.Context, target string, module Module, registry *prometheus.Registry, logger log.Logger) (net.Conn, error) {
 	var dialProtocol, dialTarget string
 	dialer := &net.Dialer{}
 	targetAddress, port, err := net.SplitHostPort(target)
@@ -117,7 +116,7 @@ func dialTCP(ctx context.Context, target string, module icmp.Module, registry *p
 		return nil, err
 	}
 
-	ip, _, err := dns.ChooseProtocol(ctx, module.TCP.IPProtocol, module.TCP.IPProtocolFallback, targetAddress, registry, logger)
+	ip, _, err := chooseProtocol(ctx, module.TCP.IPProtocol, module.TCP.IPProtocolFallback, targetAddress, registry, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "Error resolving address", "err", err)
 		return nil, err
@@ -168,7 +167,7 @@ func dialTCP(ctx context.Context, target string, module icmp.Module, registry *p
 	return tls.DialWithDialer(dialer, dialProtocol, dialTarget, tlsConfig)
 }
 
-func ProbeTCP(target string, module icmp.Module, registry *prometheus.Registry, w http.ResponseWriter) bool {
+func ProbeTCP(target string, module Module, registry *prometheus.Registry, w http.ResponseWriter) bool {
 	probeSSLEarliestCertExpiry := prometheus.NewGauge(sslEarliestCertExpiryGaugeOpts)
 	probeSSLLastChainExpiryTimestampSeconds := prometheus.NewGauge(sslChainExpiryInTimeStampGaugeOpts)
 	probeSSLLastInformation := prometheus.NewGaugeVec(
