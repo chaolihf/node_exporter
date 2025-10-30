@@ -102,14 +102,29 @@ func (collector *gpuCollector) Collect(ch chan<- prometheus.Metric) {
 				resultProcessList = append(resultProcessList, item)
 			}
 		}
-		var processTags = make(map[string]string)
-		processTags["uuid"] = uuid
-		processTags["index"] = fmt.Sprintf("%d", i)
+		processInfoDesc := prometheus.NewDesc("gpu_process_info", "GPU process info",
+			[]string{"uuid", "index", "pid", "usedGpuMemory"}, nil)
+
+		// 去重 set（避免完全相同的 label 集合重复上报）
+		emitted := make(map[string]bool)
+
 		for _, processInfo := range resultProcessList {
-			processTags["pid"] = fmt.Sprintf("%d", processInfo.Pid)
-			processTags["usedGpuMemory"] = fmt.Sprintf("%d", processInfo.UsedGpuMemory/1024/1024)
-			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("gpu_process_info", "", nil, processTags),
-				prometheus.CounterValue, float64(0))
+			pidStr := fmt.Sprintf("%d", processInfo.Pid)
+			memStr := fmt.Sprintf("%d", processInfo.UsedGpuMemory/1024/1024)
+			key := uuid + "|" + fmt.Sprintf("%d", i) + "|" + pidStr + "|" + memStr
+
+			if emitted[key] {
+				// 已上报，跳过
+				continue
+			}
+			emitted[key] = true
+
+			ch <- prometheus.MustNewConstMetric(processInfoDesc, prometheus.CounterValue, 0,
+				uuid,
+				fmt.Sprintf("%d", i),
+				pidStr,
+				memStr,
+			)
 		}
 	}
 }
