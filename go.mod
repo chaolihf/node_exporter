@@ -6,6 +6,7 @@ require (
 	github.com/NVIDIA/go-nvml v0.12.4-1
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/alecthomas/units v0.0.0-20240626203959-61d1e3462e30
+	github.com/andybalholm/brotli v1.2.0
 	github.com/beevik/ntp v1.3.0
 	github.com/bramvdbogaerde/go-scp v1.4.0
 	github.com/chaolihf/goja v0.9.1
@@ -46,7 +47,9 @@ require (
 	golang.org/x/sync v0.13.0
 	golang.org/x/sys v0.32.0
 	golang.org/x/text v0.24.0
+	google.golang.org/grpc v1.57.2
 	google.golang.org/protobuf v1.36.6
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	howett.net/plist v1.0.0
 )
@@ -90,7 +93,7 @@ require (
 	golang.org/x/oauth2 v0.28.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apimachinery v0.26.2 // indirect
 )
