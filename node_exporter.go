@@ -35,6 +35,7 @@ import (
 	"github.com/chaolihf/node_exporter/exporters/hadoop"
 	"github.com/chaolihf/node_exporter/exporters/icmp"
 	"github.com/chaolihf/node_exporter/exporters/npu"
+	"github.com/chaolihf/node_exporter/exporters/probe"
 	"github.com/chaolihf/node_exporter/exporters/switchs"
 	"github.com/chaolihf/node_exporter/exporters/tcp"
 	jjson "github.com/chaolihf/udpgo/json"
@@ -42,6 +43,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	promcollectors "github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
@@ -65,6 +67,11 @@ type handler struct {
 }
 
 var (
+	moduleUnknownCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "blackbox_module_unknown_total",
+		Help: "Count of unknown modules requested by probes",
+	})
+	configFile                  = "blackbox.yml"
 	readTimeout            int  = 10
 	enableHadoopExporter   bool = false
 	enableSwitchExporter   bool = false
@@ -74,6 +81,7 @@ var (
 	enableNpuExporter      bool = false
 	enableDnsExporter      bool = false
 	enableTcpExporter      bool = false
+	enableProbeExporter    bool = false
 )
 
 func newHandler(includeExporterMetrics bool, maxRequests int, logger log.Logger) *handler {
@@ -198,6 +206,8 @@ func initReadConfig() error {
 					enableNpuExporter = true
 				} else if jsonModuleInfo.GetStringValue() == "tcp_exporter" {
 					enableTcpExporter = true
+				} else if jsonModuleInfo.GetStringValue() == "probe_exporter" {
+					enableProbeExporter = true
 				}
 
 			}
@@ -349,6 +359,18 @@ func Main(fileLogger *zap.Logger) {
 			tcp.RequestHandler(w, r)
 		})
 		tcp.SetLogger(logger)
+
+	}
+
+	if enableProbeExporter {
+		rh := &probe.ResultHistory{MaxResults: 100}
+		logLevelProberValue, _ := level.Parse("info")
+		logLevelProber := level.Allow(logLevelProberValue)
+		conf, _ := probe.LoadConfigFromFile(configFile, logger)
+		http.HandleFunc("/probeMetrics", func(w http.ResponseWriter, r *http.Request) {
+			probe.RequestHandler(w, r, conf, logger, rh, 0.5, nil, moduleUnknownCounter, logLevelProber)
+		})
+		probe.SetLogger(logger)
 
 	}
 
