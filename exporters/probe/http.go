@@ -286,17 +286,17 @@ func ProbeHTTP(ctx context.Context, target string, module Module, registry *prom
 		)
 
 		probeHTTPVersionGauge = prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "probe_http_version",
+			Name: "black_probe_http_version",
 			Help: "Returns the version of HTTP of the probe response",
 		})
 
 		probeFailedDueToRegex = prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "probe_failed_due_to_regex",
+			Name: "black_probe_failed_due_to_regex",
 			Help: "Indicates if probe failed due to regex",
 		})
 
 		probeHTTPLastModified = prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "probe_http_last_modified_timestamp_seconds",
+			Name: "black_probe_http_last_modified_timestamp_seconds",
 			Help: "Returns the Last-Modified HTTP response header in unixtime",
 		})
 	)
