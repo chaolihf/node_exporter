@@ -31,22 +31,22 @@ const (
 
 var (
 	sslEarliestCertExpiryGaugeOpts = prometheus.GaugeOpts{
-		Name: "probe_ssl_earliest_cert_expiry",
+		Name: "black_probe_ssl_earliest_cert_expiry",
 		Help: helpSSLEarliestCertExpiry,
 	}
 
 	sslChainExpiryInTimeStampGaugeOpts = prometheus.GaugeOpts{
-		Name: "probe_ssl_last_chain_expiry_timestamp_seconds",
+		Name: "black_probe_ssl_last_chain_expiry_timestamp_seconds",
 		Help: helpSSLChainExpiryInTimeStamp,
 	}
 
 	probeTLSInfoGaugeOpts = prometheus.GaugeOpts{
-		Name: "probe_tls_version_info",
+		Name: "black_probe_tls_version_info",
 		Help: helpProbeTLSInfo,
 	}
 
 	probeTLSCipherGaugeOpts = prometheus.GaugeOpts{
-		Name: "probe_tls_cipher_info",
+		Name: "black_probe_tls_cipher_info",
 		Help: helpProbeTLSCipher,
 	}
 )
