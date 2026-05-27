@@ -4,15 +4,13 @@
 package npu
 
 import (
-	"net/http"
-
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/chaolihf/mind-cluster/component/ascend-common/common-utils/hwlog"
 	"github.com/chaolihf/mind-cluster/component/ascend-common/devmanager"
 	"github.com/chaolihf/mind-cluster/component/ascend-common/devmanager/common"
-	"github.com/chaolihf/mind-cluster/component/ascend-common/devmanager/dcmi"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,7 +27,7 @@ var HwLogConfig = &hwlog.LogConfig{
 }
 
 var logger log.Logger
-var deviceManager dcmi.DcDriverInterface
+var deviceManager devmanager.DeviceInterface
 
 type npuCollector struct {
 }
@@ -39,8 +37,7 @@ func (collector *npuCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
-	cardNum, cardIDList, err := deviceManager.DcGetCardList()
-	// cardNum, cardIDList, err := deviceManager.DcGetLogicIDList()
+	cardNum, cardIDList, err := deviceManager.GetCardList()
 	if err != nil {
 		level.Error(logger).Log("msg", "error on get npu cardlist ", err)
 	}
@@ -48,56 +45,56 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(deviceCountMetric, prometheus.CounterValue, float64(cardNum))
 	var tags = make(map[string]string)
 	for _, cardID := range cardIDList {
-		deviceNum, err := deviceManager.DcGetDeviceNumInCard(cardID)
+		deviceNum, err := deviceManager.GetDeviceNumInCard(cardID)
 		if err != nil {
 			level.Error(logger).Log("msg", "error on get device id %s\n", err)
 		}
 		tags["index"] = fmt.Sprintf("%d", cardID)
 		for deviceID := int32(0); deviceID < deviceNum; deviceID++ {
-			logicID, err := deviceManager.DcGetDeviceMainBoardInfo(cardID, deviceID)
+			logicID, err := deviceManager.GetDeviceLogicID(cardID, deviceID)
 			tags["uuid"] = fmt.Sprintf("%d", logicID)
-			voltageInfo, err := deviceManager.DcGetDeviceVoltage(cardID, int32(deviceID))
+			voltageInfo, err := deviceManager.GetDeviceVoltage(logicID)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device voltageInfo id %s", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_voltage", "", nil, tags),
 				prometheus.CounterValue, float64(voltageInfo))
-			aiCoreUtilization, err := deviceManager.DcGetDeviceUtilizationRate(cardID, int32(deviceID), common.AICore)
+			aiCoreUtilization, err := deviceManager.GetDeviceUtilizationRate(logicID, common.AICore)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device aiCoreUtilization id %s", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_aicore_utilization", "", nil, tags),
 				prometheus.CounterValue, float64(aiCoreUtilization))
 			//适配新驱动的指标
-			dcmiMultiUtilizationInfo, err := deviceManager.DcGetDeviceUtilizationRateV2(cardID, int32(deviceID))
+			dcmiMultiUtilizationInfo, err := deviceManager.GetDeviceUtilizationRateV2(logicID)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device npuUtilization id %s", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_npu_utilization", "", nil, tags),
 				prometheus.CounterValue, float64(dcmiMultiUtilizationInfo.NpuUtil))
-			overAllUtilization, err := deviceManager.DcGetDeviceUtilizationRate(cardID, int32(deviceID), common.Overall)
+			overAllUtilization, err := deviceManager.GetDeviceUtilizationRate(logicID, common.Overall)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device overAllUtilization id %s", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_overall_utilization", "", nil, tags),
 				prometheus.CounterValue, float64(overAllUtilization))
-			powerInfo, err := deviceManager.DcGetDevicePowerInfo(cardID, int32(deviceID))
+			powerInfo, err := deviceManager.GetDevicePowerInfo(logicID)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device powerInfo id %s", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_power", "", nil, tags),
 				prometheus.CounterValue, float64(powerInfo))
-			temperatureInfo, err := deviceManager.DcGetDeviceTemperature(cardID, int32(deviceID))
+			temperatureInfo, err := deviceManager.GetDeviceTemperature(logicID)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device temperatureInfo id %s", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_temperature", "", nil, tags),
 				prometheus.CounterValue, float64(temperatureInfo))
-			highBandwidthMemoryInfo, err := deviceManager.DcGetMemoryInfo(cardID, int32(deviceID))
+			highBandwidthMemoryInfo, err := deviceManager.GetDeviceMemoryInfo(logicID)
 			if err != nil {
 				level.Info(logger).Log("msg", "error on get device memory info id %s", err)
 				level.Info(logger).Log("msg", "try to get hbm info")
-				highBandwidthMemoryInfo1, err := deviceManager.DcGetHbmInfo(cardID, int32(deviceID))
+				highBandwidthMemoryInfo1, err := deviceManager.GetDeviceHbmInfo(logicID)
 				if err != nil {
 					level.Error(logger).Log("msg", "error on get device hbm info id %s", err)
 				}
@@ -123,7 +120,7 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_temp", "", nil, tags),
 					prometheus.CounterValue, float64(0))
 			}
-			devProcessInfo, err := deviceManager.DcGetDevProcessInfo(cardID, int32(deviceID))
+			devProcessInfo, err := deviceManager.GetDevProcessInfo(logicID)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device devProcessInfo id %s", err)
 			}
@@ -147,12 +144,12 @@ func init() {
 		level.Error(logger).Log("msg", "hwlog init failed, error is ", err)
 		return
 	}
-	dmgr, err := devmanager.AutoInit("")
+	var err error
+	deviceManager, err = devmanager.AutoInit("", 30)
 	if err != nil {
 		level.Error(logger).Log("msg", "new npu collector failed, error is ", err)
 		return
 	}
-	deviceManager = dmgr.DcMgr
 }
 
 func SetLogger(globalLogger log.Logger) {
