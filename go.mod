@@ -11,7 +11,7 @@ require (
 	github.com/bramvdbogaerde/go-scp v1.4.0
 	github.com/chaolihf/goja v0.9.1
 	github.com/chaolihf/gopsutil v0.0.4
-	github.com/chaolihf/mind-cluster v0.0.5
+	github.com/chaolihf/mind-cluster v0.0.5-beta
 	github.com/chaolihf/udpgo v0.0.14
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/dennwc/btrfs v0.0.0-20230312211831-a1f570bd01a1
@@ -96,4 +96,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	k8s.io/apimachinery v0.26.2 // indirect
+	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d // indirect
 )
