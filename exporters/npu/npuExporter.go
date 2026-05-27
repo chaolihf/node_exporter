@@ -68,6 +68,13 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_aicore_utilization", "", nil, tags),
 				prometheus.CounterValue, float64(aiCoreUtilization))
+			//适配新驱动的指标
+			dcmiMultiUtilizationInfo, err := deviceManager.DcGetDeviceUtilizationRateV2(cardID, int32(deviceID))
+			if err != nil {
+				level.Error(logger).Log("msg", "error on get device npuUtilization id %s", err)
+			}
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_npu_utilization", "", nil, tags),
+				prometheus.CounterValue, float64(dcmiMultiUtilizationInfo.NpuUtil))
 			overAllUtilization, err := deviceManager.DcGetDeviceUtilizationRate(cardID, int32(deviceID), common.Overall)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device overAllUtilization id %s", err)
