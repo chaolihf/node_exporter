@@ -6,6 +6,7 @@ package npu
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 
 	"github.com/chaolihf/mind-cluster/component/ascend-common/common-utils/hwlog"
@@ -55,29 +56,45 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 			tags["uuid"] = fmt.Sprintf("%d", logicID)
 			voltageInfo, err := deviceManager.GetDeviceVoltage(logicID)
 			if err != nil {
-				level.Error(logger).Log("msg", "error on get device voltageInfo id %s", err)
+				level.Error(logger).Log("msg", "error on get device voltageInfo", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_voltage", "", nil, tags),
 				prometheus.CounterValue, float64(voltageInfo))
-			aiCoreUtilization, err := deviceManager.GetDeviceUtilizationRate(logicID, common.AICore)
-			if err != nil {
-				level.Error(logger).Log("msg", "error on get device aiCoreUtilization id %s", err)
-			}
-			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_aicore_utilization", "", nil, tags),
-				prometheus.CounterValue, float64(aiCoreUtilization))
-			//适配新驱动的指标
+			// 适配新驱动的指标：优先使用 V2 API，失败时回退到 V1 API
+			var aiCoreUtilization uint32
+			var gotValidUtilization bool
+
 			dcmiMultiUtilizationInfo, err := deviceManager.GetDeviceUtilizationRateV2(logicID)
 			if err != nil {
-				level.Error(logger).Log("msg", "error on get device npuUtilization id %s", err)
+				level.Warn(logger).Log("msg", "GetDeviceUtilizationRateV2 failed", "id", logicID, "error", err)
+				// Fallback to V1 API
+				aiCoreUtilizationApi, err := deviceManager.GetDeviceUtilizationRate(logicID, common.AICore)
+				if err != nil {
+					level.Error(logger).Log("msg", "error on get device aiCoreUtilization", "id", logicID, "error", err)
+					// 两次调用都失败，跳过该指标
+				} else {
+					aiCoreUtilization = aiCoreUtilizationApi
+					gotValidUtilization = true
+				}
+			} else {
+				aiCoreUtilization = dcmiMultiUtilizationInfo.AicoreUtil
+				gotValidUtilization = true
 			}
-			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_npu_utilization", "", nil, tags),
-				prometheus.CounterValue, float64(dcmiMultiUtilizationInfo.NpuUtil))
-			overAllUtilization, err := deviceManager.GetDeviceUtilizationRate(logicID, common.Overall)
+
+			// 只有获取到有效值时才上报指标
+			if gotValidUtilization && validateNum(float64(aiCoreUtilization)) {
+				ch <- prometheus.MustNewConstMetric(
+					prometheus.NewDesc("npu_device_aicore_utilization", "AI Core utilization rate", nil, tags),
+					prometheus.CounterValue,
+					float64(aiCoreUtilization),
+				)
+			}
+			overAllUtilization, err := deviceManager.GetDeviceUtilizationRate(logicID, common.AICore)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device overAllUtilization id %s", err)
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_overall_utilization", "", nil, tags),
-				prometheus.CounterValue, float64(overAllUtilization))
+				prometheus.CounterValue, float64(int(overAllUtilization)))
 			powerInfo, err := deviceManager.GetDevicePowerInfo(logicID)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device powerInfo id %s", err)
@@ -90,36 +107,20 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_temperature", "", nil, tags),
 				prometheus.CounterValue, float64(temperatureInfo))
-			highBandwidthMemoryInfo, err := deviceManager.GetDeviceMemoryInfo(logicID)
+			highBandwidthMemoryInfo1, err := deviceManager.GetDeviceHbmInfo(logicID)
 			if err != nil {
-				level.Info(logger).Log("msg", "error on get device memory info id %s", err)
-				level.Info(logger).Log("msg", "try to get hbm info")
-				highBandwidthMemoryInfo1, err := deviceManager.GetDeviceHbmInfo(logicID)
-				if err != nil {
-					level.Error(logger).Log("msg", "error on get device hbm info id %s", err)
-				}
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_size", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo1.MemorySize))
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_frequency", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo1.Frequency))
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_usage", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo1.Usage))
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_temp", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo1.Temp))
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_utilization", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo1.BandWidthUtilRate))
-			} else {
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_size", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo.MemorySize))
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_frequency", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo.Frequency))
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_usage", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo.MemorySize-highBandwidthMemoryInfo.MemoryAvailable))
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_utilization", "", nil, tags),
-					prometheus.CounterValue, float64(highBandwidthMemoryInfo.Utilization))
-				ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_temp", "", nil, tags),
-					prometheus.CounterValue, float64(0))
+				level.Error(logger).Log("msg", "error on get device hbm info id %s", err)
 			}
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_size", "", nil, tags),
+				prometheus.CounterValue, float64(highBandwidthMemoryInfo1.MemorySize))
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_frequency", "", nil, tags),
+				prometheus.CounterValue, float64(highBandwidthMemoryInfo1.Frequency))
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_usage", "", nil, tags),
+				prometheus.CounterValue, float64(highBandwidthMemoryInfo1.Usage))
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_temp", "", nil, tags),
+				prometheus.CounterValue, float64(highBandwidthMemoryInfo1.Temp))
+			ch <- prometheus.MustNewConstMetric(prometheus.NewDesc("npu_device_highbandwidth_memory_utilization", "", nil, tags),
+				prometheus.CounterValue, float64(highBandwidthMemoryInfo1.BandWidthUtilRate))
 			devProcessInfo, err := deviceManager.GetDevProcessInfo(logicID)
 			if err != nil {
 				level.Error(logger).Log("msg", "error on get device devProcessInfo id %s", err)
@@ -139,13 +140,20 @@ func (collector *npuCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
+func validateNum(num float64) bool {
+	if num == -1 || num == math.MaxUint32 || float32(num) == math.MaxUint32 {
+		return false
+	}
+
+	return true
+}
 func init() {
 	if err := hwlog.InitRunLogger(HwLogConfig, context.Background()); err != nil {
 		level.Error(logger).Log("msg", "hwlog init failed, error is ", err)
 		return
 	}
 	var err error
-	deviceManager, err = devmanager.AutoInit("", 30)
+	deviceManager, err = devmanager.AutoInit("", 60)
 	if err != nil {
 		level.Error(logger).Log("msg", "new npu collector failed, error is ", err)
 		return
