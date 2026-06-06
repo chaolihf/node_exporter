@@ -19,11 +19,12 @@ import (
 )
 
 /*
-定义Shell类
+定义 Shell 类
 */
 type Shell_Script struct {
 	lineParser *regexp.Regexp
 	configs    []ShellConfig
+	logger     log.Logger
 }
 
 /*
@@ -43,10 +44,9 @@ func init() {
 初始化收集器
 */
 func newShellScriptCollector(g_logger log.Logger) (Collector, error) {
-	logger = g_logger
 	lineParser, err := regexp.Compile(`([---a-zA-Z0-9_]+)({(.*)})? ([---NaN0-9e\\.\\+]+)( [0-9]+)*`)
 	if err != nil {
-		logger.Log(err.Error())
+		g_logger.Log(err.Error())
 	}
 	filePath := "config.json"
 	content, err := os.ReadFile(filePath)
@@ -55,7 +55,7 @@ func newShellScriptCollector(g_logger log.Logger) (Collector, error) {
 	} else {
 		jsonScriptInfos, err := jjson.NewJsonObject([]byte(content))
 		if err != nil {
-			fmt.Println("JSON文件格式出错:", err)
+			fmt.Println("JSON 文件格式出错:", err)
 		} else {
 			var scriptConfigs []ShellConfig
 			for _, jsonScriptInfo := range jsonScriptInfos.GetJsonArray("shellScript") {
@@ -74,12 +74,14 @@ func newShellScriptCollector(g_logger log.Logger) (Collector, error) {
 			return &Shell_Script{
 				lineParser: lineParser,
 				configs:    scriptConfigs,
+				logger:     g_logger,
 			}, nil
 		}
 	}
 	return &Shell_Script{
 		lineParser: lineParser,
 		configs:    nil,
+		logger:     g_logger,
 	}, nil
 }
 
@@ -90,8 +92,7 @@ func (collector *Shell_Script) Update(ch chan<- prometheus.Metric) error {
 	scriptChannel := make([]chan string, len(collector.configs))
 	for index, config := range collector.configs {
 		scriptChannel[index] = make(chan string)
-		go runScript(collector.lineParser, scriptChannel[index], ch, config)
-
+		go runScript(collector.logger, collector.lineParser, scriptChannel[index], ch, config)
 	}
 	for _, scriptChan := range scriptChannel {
 		v := <-scriptChan
@@ -100,7 +101,7 @@ func (collector *Shell_Script) Update(ch chan<- prometheus.Metric) error {
 	return nil
 }
 
-func runScript(lineParser *regexp.Regexp, scriptChain chan<- string, ch chan<- prometheus.Metric, config ShellConfig) {
+func runScript(logger log.Logger, lineParser *regexp.Regexp, scriptChain chan<- string, ch chan<- prometheus.Metric, config ShellConfig) {
 	deadline := time.Now().Add(time.Duration(config.Timeout * float64(time.Second)))
 	var cmd *exec.Cmd
 	var cancel context.CancelFunc
