@@ -206,6 +206,67 @@ systemd | Exposes service and system status from [systemd](http://www.freedeskto
 tcpstat | Exposes TCP connection status information from `/proc/net/tcp` and `/proc/net/tcp6`. (Warning: the current version has potential performance issues in high load situations.) | Linux
 wifi | Exposes WiFi device and station statistics. | Linux
 zoneinfo | Exposes NUMA memory zone metrics. | Linux
+user_accounts | Exposes user account information, password last change time, and sudo permissions. | Linux
+
+### User Accounts Collector
+
+The `user_accounts` collector exposes user account information including:
+- User basic information (username, uid, gid, gecos, home, shell)
+- Password last change time (Unix timestamp)
+- Sudo permissions
+- Account status (active/locked)
+
+**Note**: This collector requires read access to `/etc/shadow` and `/etc/sudoers` files. You have two options:
+
+1. **Run as root** (not recommended for security reasons)
+2. **Use ACL permissions** (recommended):
+   ```bash
+   # Install ACL tools if not already installed
+   # Ubuntu/Debian:
+   sudo apt-get install acl
+   # CentOS/RHEL:
+   sudo yum install acl
+
+   # Set ACL permissions for the user running node_exporter
+   sudo setfacl -m u:prometheus:r /etc/shadow
+   sudo setfacl -m u:prometheus:r /etc/sudoers
+   sudo setfacl -m u:prometheus:rx /etc/sudoers.d
+
+   # Verify permissions
+   getfacl /etc/shadow
+   getfacl /etc/sudoers
+   ```
+
+   Alternatively, use the provided script:
+   ```bash
+   sudo ./scripts/setup_acl.sh prometheus
+   ```
+
+   To remove ACL permissions:
+   ```bash
+   sudo setfacl -x u:prometheus /etc/shadow
+   sudo setfacl -x u:prometheus /etc/sudoers
+   sudo setfacl -x u:prometheus /etc/sudoers.d
+   ```
+
+**Configuration** (via `config.json`):
+```json
+{
+  "userAccounts": {
+    "enable": 1,        // 0=disabled, 1=full collection, 2=incremental collection
+    "interval": 3600,   // Full collection interval in seconds (for mode 2)
+    "collect_users": true,
+    "collect_shadow": true,
+    "collect_sudo": true
+  }
+}
+```
+
+**Metrics**:
+- `node_user_accounts_info` - User account information (value is metric_type: 0=full, 1=new, 2=updated, 3=deleted)
+- `node_user_accounts_password_last_change_timestamp` - Password last change time as Unix timestamp
+- `node_user_accounts_sudo_permission` - Sudo permission status (1=has sudo, 0=no sudo)
+- `node_user_accounts_account_status` - Account status (1=active, 0=locked/expired)
 
 ### Deprecated
 
