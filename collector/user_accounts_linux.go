@@ -361,44 +361,44 @@ func (c *userAccountsCollector) readShadow() ([]shadowInfo, error) {
 			username: parts[0],
 		}
 
-		// Parse last change date (days since epoch)
-		if parts[1] != "" && parts[1] != "-" {
-			if days, err := strconv.ParseInt(parts[1], 10, 64); err == nil {
+		// Parse last change date (days since epoch) - field index 2
+		if len(parts) > 2 && parts[2] != "" && parts[2] != "-" {
+			if days, err := strconv.ParseInt(parts[2], 10, 64); err == nil {
 				shadow.lastChange = days
 			}
 		}
 
-		// Parse minimum age
-		if len(parts) > 2 && parts[2] != "" && parts[2] != "-" {
-			if days, err := strconv.ParseInt(parts[2], 10, 64); err == nil {
+		// Parse minimum age - field index 3
+		if len(parts) > 3 && parts[3] != "" && parts[3] != "-" {
+			if days, err := strconv.ParseInt(parts[3], 10, 64); err == nil {
 				shadow.minAge = days
 			}
 		}
 
-		// Parse maximum age
-		if len(parts) > 3 && parts[3] != "" && parts[3] != "-" {
-			if days, err := strconv.ParseInt(parts[3], 10, 64); err == nil {
+		// Parse maximum age - field index 4
+		if len(parts) > 4 && parts[4] != "" && parts[4] != "-" {
+			if days, err := strconv.ParseInt(parts[4], 10, 64); err == nil {
 				shadow.maxAge = days
 			}
 		}
 
-		// Parse warning age
-		if len(parts) > 4 && parts[4] != "" && parts[4] != "-" {
-			if days, err := strconv.ParseInt(parts[4], 10, 64); err == nil {
+		// Parse warning age - field index 5
+		if len(parts) > 5 && parts[5] != "" && parts[5] != "-" {
+			if days, err := strconv.ParseInt(parts[5], 10, 64); err == nil {
 				shadow.warnAge = days
 			}
 		}
 
-		// Parse inactive period
-		if len(parts) > 5 && parts[5] != "" && parts[5] != "-" {
-			if days, err := strconv.ParseInt(parts[5], 10, 64); err == nil {
+		// Parse inactive period - field index 6
+		if len(parts) > 6 && parts[6] != "" && parts[6] != "-" {
+			if days, err := strconv.ParseInt(parts[6], 10, 64); err == nil {
 				shadow.inactive = days
 			}
 		}
 
-		// Parse expire date
-		if len(parts) > 6 && parts[6] != "" && parts[6] != "-" {
-			if days, err := strconv.ParseInt(parts[6], 10, 64); err == nil {
+		// Parse expire date - field index 7
+		if len(parts) > 7 && parts[7] != "" && parts[7] != "-" {
+			if days, err := strconv.ParseInt(parts[7], 10, 64); err == nil {
 				shadow.expireDate = days
 			}
 		}
