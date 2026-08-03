@@ -38,3 +38,4 @@ collector/fixtures/udev/
 
 /vendor
 .codefree/*
+cmd/*
