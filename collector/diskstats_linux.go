@@ -85,6 +85,7 @@ type diskstatsCollector struct {
 	filesystemInfoDesc      typedFactorDesc
 	deviceMapperInfoDesc    typedFactorDesc
 	ataDescs                map[string]typedFactorDesc
+	diskAwaitDesc           typedFactorDesc
 	logger                  log.Logger
 	getUdevDeviceProperties func(uint32, uint32) (udevInfo, error)
 }
@@ -257,6 +258,10 @@ func NewDiskstatsCollector(logger log.Logger) (Collector, error) {
 				), valueType: prometheus.GaugeValue,
 			},
 		},
+		diskAwaitDesc: typedFactorDesc{
+			desc:      diskAwaitDesc,
+			valueType: prometheus.GaugeValue,
+		},
 		logger: logger,
 	}
 
@@ -330,6 +335,19 @@ func (c *diskstatsCollector) Update(ch chan<- prometheus.Metric) error {
 				break
 			}
 			ch <- c.descs[i].mustNewConstMetric(val, dev)
+		}
+
+		// Calculate and output await metric
+		// await = (read_time + write_time) / (reads + writes)
+		readsCompleted := float64(stats.ReadIOs)
+		writesCompleted := float64(stats.WriteIOs)
+		readTime := float64(stats.ReadTicks) * secondsPerTick
+		writeTime := float64(stats.WriteTicks) * secondsPerTick
+
+		totalOps := readsCompleted + writesCompleted
+		if totalOps > 0 {
+			await := (readTime + writeTime) / totalOps
+			ch <- c.diskAwaitDesc.mustNewConstMetric(await, dev)
 		}
 
 		if fsType := info[udevIDFSType]; fsType != "" {

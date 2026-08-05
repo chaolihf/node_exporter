@@ -91,6 +91,13 @@ var (
 		diskLabelNames,
 		nil,
 	)
+
+	diskAwaitDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, diskSubsystem, "await_seconds"),
+		"The average wait time for disk I/O operations in seconds.",
+		diskLabelNames,
+		nil,
+	)
 )
 
 func newDiskstatsDeviceFilter(logger log.Logger) (deviceFilter, error) {
